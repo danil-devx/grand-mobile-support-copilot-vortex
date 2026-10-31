@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Any, Dict
 import uvicorn
 
-from service import triage_ticket
+from service import triage_ticket, _is_complaint_intent
 
 app = FastAPI(
     title="Grand Mobile Support Copilot",
@@ -51,7 +51,7 @@ class MessageItem(BaseModel):
 
 class TriageRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    kind: str = Field(default="complaint", description="Тип обращения: 'complaint' или 'report'")
+    kind: Optional[str] = Field(default=None, description="Тип обращения: 'complaint' или 'report'")
     messages: Optional[List[MessageItem]] = Field(default=None, description="Сообщения в тикете")
     text: Optional[str] = Field(default=None, description="Одиночный текст тикета")
     ticket_id: Optional[str] = None
@@ -74,18 +74,23 @@ def triage_endpoint(req: TriageRequest) -> Dict[str, Any]:
     """
     try:
         payload = req.model_dump()
+        raw_text = payload.get("text") or ""
         
         # Если тикет передан как простой текст (из веб-формы или curl), оборачиваем в messages
-        if not payload.get("messages") and payload.get("text"):
+        if not payload.get("messages") and raw_text:
             payload["messages"] = [
                 {
                     "role": "player",
-                    "text": payload["text"],
+                    "text": raw_text,
                     "attachments": 0
                 }
             ]
-        elif not payload.get("messages"):
-            payload["messages"] = []
+        elif payload.get("messages") and not raw_text:
+            raw_text = " ".join(m.get("text", "") for m in payload["messages"])
+
+        # Умное определение kind, если не задан явно:
+        if not payload.get("kind"):
+            payload["kind"] = "complaint" if _is_complaint_intent(raw_text.lower()) else "report"
 
         result = triage_ticket(payload)
         return result

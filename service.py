@@ -50,24 +50,42 @@ def _is_gameplay_question(norm: str) -> bool:
     if _is_complaint_intent(norm):
         return False
 
+    if any(w in norm for w in ["админ", "хелпер", "деморган", "jail", "взлом", "взломали", "украли аккаунт", "пароль", "не могу зайти", "донат", "оплат", "не пришли гк", "деньги списали", "hacked", "donate"]):
+        return False
+
+    if re.search(r'\b(бан|бана|баны|забанен\w*|разбан\w*|варн\w*|мут\w*|жалоб\w*)\b', norm):
+        return False
+
     # Маркеры вопросов по геймплею и базовой помощи
     gameplay_markers = [
-        "как устроиться", "где найти", "как заработать", "какой уровень", "зарплат",
-        "где банк", "в банке", "банк", "где мэрия", "где автосалон", "где авторынок", "как сдать на права",
-        "лицензи", "где находится", "gps", "гпс", "как передать", "какой лвл", "как повысить",
-        "работать", "работа", "дальнобойщик", "шахта", "завод", "ферма", "автошкола",
-        "купить машину", "купить дом", "команда", "команды", "инвентарь", "квест",
-        "как продать", "как открыть", "как получить", "сколько стоит", "где купить",
+        # Вопросительные маркеры
+        "как", "где", "куда", "когда", "почему", "зачем", "сколько", "можно ли", "что делать",
+        # Работы и заработок
+        "шахт", "руд", "карьер", "завод", "ферм", "дальнобой", "грузчик", "работ", "устроит", "зарплат", "деньг", "доход",
+        # Финансы
+        "банк", "вклад", "депозит", "счет", "снять", "положить", "передать",
+        # Транспорт
+        "автосалон", "машин", "транспорт", "автомобил", "купить", "продать", "авторынок", "тюнинг",
+        # Права и лицензии
+        "права", "автошкол", "лицензи", "экзамен", "сдать", "вождение",
+        # Фракции и организации
+        "мэри", "правительств", "фракци", "организац", "собеседован", "инвайт", "ранг", "повышен",
+        # Навигация и координаты
+        "gps", "гпс", "навигатор", "карт", "найти", "место", "локаци", "где находится",
+        # Прокачка
+        "лвл", "уровен", "опыт", "exp", "стат", "скилл", "прокач",
+        # Команды и справка
+        "команд", "хелп", "помощ", "подскаж", "скаж", "инвентар", "квест",
         # KK
-        "қалай", "қайда", "жұмыс", "ақша табу", "деңгей", "қанша тұрады",
+        "қалай", "қайда", "жұмыс", "ақша", "деңгей", "қанша", "көлік", "шахта", "банк",
         # UZ
-        "qanday", "qayerda", "ishga", "daraja", "litsenziya", "qancha",
+        "qanday", "qayerda", "ish", "ishga", "daraja", "litsenziya", "qancha", "mashina", "bank", "shaxta",
         # EN
-        "how to", "where is", "how can i", "which level", "salary", "location", "how do i",
+        "how", "where", "what", "which", "job", "mine", "mining", "work", "level", "salary", "gps", "money", "buy", "car", "bank",
         # ES
-        "cómo", "dónde", "trabajo", "nivel", "cuánto cuesta",
+        "cómo", "dónde", "trabajo", "mina", "nivel", "salario", "cuánto", "dinero", "coche", "auto", "banco",
         # PT
-        "como", "onde", "trabalho", "nível", "quanto custa"
+        "como", "onde", "trabalho", "mina", "nível", "salário", "quanto", "dinheiro", "carro", "banco"
     ]
     return any(gm in norm for gm in gameplay_markers)
 
@@ -77,7 +95,7 @@ def _is_complaint_intent(norm: str) -> bool:
     Проверяет, содержит ли текст жалобу на нарушение правил или другого игрока.
     """
     complaint_pattern = re.compile(
-        r'(\b(дм|дб|dm|db)\w*|'
+        r'(\b(админ\w*|хелпер\w*|жалоб\w*|мут\w*|jail|деморган\w*)\b|\b(за)?(дм|дб|dm|db)\w*|'
         r'\b(чит\w*|софт\w*|аим\w*|рванка|вх|автокликер\w*|бот\w*|'
         r'убил\w*|застрелил\w*|таран\w*|стреля\w*|deathmatch|'
         r'оск\w*|оскорб\w*|родн\w*|мать|маму|шлюх\w*|сука|чмо|даун|sokyapti|'
@@ -169,6 +187,10 @@ def _rule_based_triage(
     nickname = facts["nickname"]
     has_evidence = facts["has_evidence"]
 
+    # Нормализуем тип обращения: help -> report
+    if kind in ["help", "question"]:
+        kind = "report"
+
     reply_lang = lang if lang in ["ru", "kk", "uz", "en", "es", "pt"] else "ru"
 
     # =========================================================================
@@ -248,50 +270,149 @@ def _rule_based_triage(
         }
 
     # =========================================================================
-    # СЦЕНАРИЙ 2: Вопрос по геймплею в репорте (kind == "report" и геймплей)
-    # Запрещено применять пункты правил нарушений и шаблон "Жалоба принята"!
+    # СЦЕНАРИЙ 2: Вопрос по геймплею в репорте / помощи
     # =========================================================================
     if kind == "report" and _is_gameplay_question(norm):
+        # 1. Если игрок конкретно застрял в текстурах
+        if any(w in norm for w in ["застрял", "текстур", "не могу пошевелит", "вытащите", "stuck", "tiqilib"]):
+            category = "report.help"
+            priority = "p2"
+            needs_human = False
+            reasons = ["Просьба о помощи с освобождением персонажа из текстур."]
+            help_templates = {
+                "ru": "Здравствуйте! Если вы застряли в текстурах или транспорте, администрация уже спешит на помощь! Также вы можете попробовать ввести команду /spback или дождаться помощи дежурного администратора.",
+                "kk": "Сәлеметсіз бе! Егер кейіпкеріңіз текстурада қалып қойса, әкімшілік көмекке келеді! Қозғала алмасаңыз, /spback командасын қолданып көріңіз.",
+                "uz": "Salom! Agar qahramoningiz teksturada qolib ketgan bo'lsa, navbatchi ma'muriyat yordam beradi!",
+                "en": "Hello! If you are stuck in game textures, admin assistance is on the way. You can also try using the /spback command.",
+                "es": "¡Hola! Si tu personaje está atrapado en las texturas, un administrador te ayudará en breve.",
+                "pt": "Olá! Se o seu personagem estiver preso nas texturas, um administrador logo irá ajudá-lo."
+            }
+            draft_text = help_templates.get(reply_lang, help_templates["ru"])
+            cited_rules = []
+            rules_cited = []
+            facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="help_stuck")
+            return {
+                "category": category,
+                "lang": reply_lang,
+                "priority": priority,
+                "is_spam_or_duplicate": False,
+                "facts_extracted": facts_extracted,
+                "extracted": {"nickname": nickname, "rule_refs": [], "has_evidence": has_evidence, "server": None},
+                "draft_reply": {"lang": reply_lang, "text": draft_text, "rules_cited": rules_cited, "cited": []},
+                "needs_human": needs_human,
+                "confidence": 0.88,
+                "reasons": reasons
+            }
+
+        # 2. Игровые механики, работы, навигация
         category = "report.question"
         cited_rules = []  # Правила нарушений категорически не применяются
         priority = "p3"
         needs_human = False
-        reasons = ["Вопрос по игровым механикам классифицирован как report.question, подготовлена полезная справка."]
+        reasons = ["Вопрос по игровым механикам классифицирован как report.question, подготовлена подробная инструкция."]
 
-        draft_templates = {
-            "ru": (
-                "Здравствуйте! Для поиска нужной локации или работы используйте встроенный навигатор: введите команду /gps "
-                "и выберите интересующий раздел (Поиск работы, Государственные учреждения, Банк). "
-                "Уровень персонажа и текущую зарплату можно посмотреть командой /stats, а список всех команд — /help. "
-                "Приятной игры на Grand Mobile!"
-            ),
-            "kk": (
-                "Сәлеметсіз бе! Қажетті орынды немесе жұмысты табу үшін ойын навигаторын қолданыңыз: /gps командасын енгізіп, "
-                "қажетті бағытты таңдаңыз. Кейіпкер деңгейі мен жалақысын /stats командасымен, ал барлық қолжетімді командаларды /help арқылы көре аласыз. "
-                "Grand Mobile-да сәтті ойын тілейміз!"
-            ),
-            "uz": (
-                "Salom! Kerakli ish yoki joyni topish uchun o'yin navigatoridan foydalaning: /gps buyrug'ini kiriting va kerakli bo'limni tanlang. "
-                "Qahramon darajasi va maoshini /stats buyrug'i orqali, barcha buyruqlar ro'yxatini esa /help orqali ko'rishingiz mumkin. "
-                "Grand Mobile-da maroqli o'yin tilaymiz!"
-            ),
-            "en": (
-                "Hello! To find any location or job, please use the in-game GPS: enter /gps and choose the desired category (Jobs, Bank, Government). "
-                "You can check your character level and stats with /stats, and see all available commands with /help. "
-                "Enjoy playing Grand Mobile!"
-            ),
-            "es": (
-                "¡Hola! Para encontrar cualquier ubicación o trabajo, usa el GPS del juego: ingresa el comando /gps y elige la categoría deseada (Búsqueda de trabajo, Banco, Gobierno). "
-                "Puedes verificar tu nivel y estadísticas con /stats, y ver todos los comandos con /help. "
-                "¡Disfruta jugando en Grand Mobile!"
-            ),
-            "pt": (
-                "Olá! Para encontrar qualquer local ou trabalho, use o GPS do jogo: digite o comando /gps e escolha a categoria desejada (Buscar emprego, Banco, Governo). "
-                "Você pode conferir seu nível e estatísticas com /stats, e ver todos os comandos com /help. "
-                "Bom jogo no Grand Mobile!"
-            )
-        }
-        draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
+        if any(w in norm for w in ["шахт", "руд", "карьер", "ископаем"]):
+            job_templates = {
+                "ru": (
+                    "Здравствуйте! Чтобы устроиться и работать на Шахте, используйте встроенный навигатор: введите команду /gps "
+                    "и выберите раздел «Поиск работы» → «Шахта» (на карте появится метка). "
+                    "Работа на шахте доступна с начального уровня (1 lvl) без предварительного опыта. "
+                    "Чтобы начать добычу руды, подойдите к маркеру взаимодействия в карьере. "
+                    "Узнать текущий баланс, заработанные деньги и уровень персонажа можно через команду /stats, "
+                    "а список всех доступных команд игры — /help. Желаем приятной и прибыльной игры на Grand Mobile!"
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Шахтаға жұмысқа тұру үшін /gps командасын енгізіп, «Жұмыс іздеу» → «Шахта» бөлімін таңдаңыз. "
+                    "Шахтада бастапқы 1-деңгейден бастап жұмыс істеуге болады. "
+                    "Кейіпкер деңгейін және табысты /stats, ал барлық командаларды /help арқылы тексере аласыз. Ойыныңыз сәтті өтсін!"
+                ),
+                "uz": (
+                    "Salom! Shaxtaga ishga joylashish uchun /gps buyrug'ini kiriting va «Ish qidirish» → «Shaxta» bo'limini tanlang. "
+                    "Shaxtada boshlang'ich 1-darajadan boshlab ishlashingiz mumkin. "
+                    "Darajangizni va maoshingizni /stats, barcha buyruqlar ro'yxatini esa /help orqali ko'rishingiz mumkin. "
+                    "Grand Mobile-da maroqli o'yin tilaymiz!"
+                ),
+                "en": (
+                    "Hello! To get a job at the Mine, open the in-game GPS: enter /gps → «Jobs» → «Mine» (a marker will appear on your map). "
+                    "Working at the mine is available from level 1 without prior experience. Approach the interaction marker at the quarry to start mining. "
+                    "Check your stats and salary with /stats, and see all commands with /help. Enjoy Grand Mobile!"
+                ),
+                "es": (
+                    "¡Hola! Para conseguir trabajo en la Mina, usa el GPS: ingresa el comando /gps → «Búsqueda de trabajo» → «Mina». "
+                    "El trabajo en la mina está disponible desde el nivel 1. "
+                    "Verifica tu nivel y salario con /stats, y consulta todos los comandos con /help. ¡Buen juego en Grand Mobile!"
+                ),
+                "pt": (
+                    "Olá! Para trabalhar na Mina, use o GPS do jogo: comando /gps → «Buscar emprego» → «Mina». "
+                    "O trabalho na mina está disponível a partir do nível 1. "
+                    "Confira seu saldo e nível com /stats, e veja todos os comandos com /help. Bom jogo no Grand Mobile!"
+                )
+            }
+            draft_text = job_templates.get(reply_lang, job_templates["ru"])
+        elif any(w in norm for w in ["банк", "вклад", "депозит", "счет", "снять деньги"]):
+            bank_templates = {
+                "ru": (
+                    "Здравствуйте! Ближайшее отделение банка можно найти через навигатор: введите команду /gps "
+                    "и выберите раздел «Банки и банкоматы». В банке вы можете открыть вклад под процент, оплатить налоги "
+                    "за дом или бизнес и снять заработную плату. Проверить баланс счета можно через /stats или в приложении банка в телефоне персонажа."
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Жақын маңдағы банкті табу үшін /gps командасын енгізіп, «Банктер және банкоматтар» бөлімін таңдаңыз. "
+                    "Банкте салым ашуға, салықтарды төлеуге және жалақыны шешіп алуға болады. Балансты /stats арқылы көре аласыз."
+                ),
+                "uz": (
+                    "Salom! Yaqin atrofdagi bankni topish uchun /gps buyrug'ini kiriting va «Banklar va bankomatlar» bo'limini tanlang. "
+                    "Bankda omonat ochish, soliq to'lash va oylikni yechish mumkin. Hisobingizni /stats orqali tekshiring."
+                ),
+                "en": (
+                    "Hello! You can find the nearest bank using the in-game GPS: enter /gps → «Banks & ATMs». "
+                    "At the bank, you can open a deposit account, pay taxes, and withdraw your salary. Check your balance with /stats."
+                ),
+                "es": (
+                    "¡Hola! Puedes encontrar el banco más cercano usando el GPS del juego: comando /gps → «Bancos y cajeros». "
+                    "En el banco puedes abrir un depósito, pagar impuestos y retirar tu salario. Consulta tu saldo con /stats."
+                ),
+                "pt": (
+                    "Olá! Encontre o banco mais próximo pelo GPS: comando /gps → «Bancos e caixas eletrônicos». "
+                    "No banco você pode abrir depósito, pagar impostos e sacar seu salário. Veja seu saldo com /stats."
+                )
+            }
+            draft_text = bank_templates.get(reply_lang, bank_templates["ru"])
+        else:
+            draft_templates = {
+                "ru": (
+                    "Здравствуйте! Для поиска нужной локации или работы используйте встроенный навигатор: введите команду /gps "
+                    "и выберите интересующий раздел (Поиск работы, Государственные учреждения, Банк). "
+                    "Уровень персонажа и текущую зарплату можно посмотреть командой /stats, а список всех команд — /help. "
+                    "Приятной игры на Grand Mobile!"
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Қажетті орынды немесе жұмысты табу үшін ойын навигаторын қолданыңыз: /gps командасын енгізіп, "
+                    "қажетті бағытты таңдаңыз. Кейіпкер деңгейі мен жалақысын /stats командасымен, ал барлық қолжетімді командаларды /help арқылы көре аласыз. "
+                    "Grand Mobile-да сәтті ойын тілейміз!"
+                ),
+                "uz": (
+                    "Salom! Kerakli ish yoki joyni topish uchun o'yin navigatoridan foydalaning: /gps buyrug'ini kiriting va kerakli bo'limni tanlang. "
+                    "Qahramon darajasi va maoshini /stats buyrug'i orqali, barcha buyruqlar ro'yxatini esa /help orqali ko'rishingiz mumkin. "
+                    "Grand Mobile-da maroqli o'yin tilaymiz!"
+                ),
+                "en": (
+                    "Hello! To find any location or job, please use the in-game GPS: enter /gps and choose the desired category (Jobs, Bank, Government). "
+                    "You can check your character level and stats with /stats, and see all available commands with /help. "
+                    "Enjoy playing Grand Mobile!"
+                ),
+                "es": (
+                    "¡Hola! Para encontrar cualquier ubicación o trabajo, usa el GPS del juego: ingresa el comando /gps y elige la categoría deseada (Búsqueda de trabajo, Banco, Gobierno). "
+                    "Puedes verificar tu nivel y estadísticas con /stats, y ver todos los comandos con /help. "
+                    "¡Disfruta jugando en Grand Mobile!"
+                ),
+                "pt": (
+                    "Olá! Para encontrar qualquer local ou trabalho, use o GPS do jogo: digite o comando /gps e escolha a categoria desejada (Buscar emprego, Banco, Governo). "
+                    "Você pode conferir seu nível e estatísticas com /stats, e ver todos os comandos com /help. "
+                    "Bom jogo no Grand Mobile!"
+                )
+            }
+            draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
 
         rules_cited = []
         facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="gameplay")
@@ -319,7 +440,6 @@ def _rule_based_triage(
             "reasons": reasons
         }
 
-    # =========================================================================
     # СЦЕНАРИЙ 3: Кросс-канальный Mismatch — Жалоба на нарушение через репорт (kind == "report")
     # =========================================================================
     if kind == "report" and _is_complaint_intent(norm):
@@ -328,7 +448,7 @@ def _rule_based_triage(
 
         if any(w in norm for w in ["чит", "софт", "аим", "рванка", "вх", "soft", "cheat"]):
             cited_rules = ["5.2"]
-        elif re.search(r'\b(дм|дб|dm|db)\b', norm) or any(w in norm for w in ["убил", "застрелил", "таран"]):
+        elif re.search(r'\b(за)?(дм|дб|dm|db)\w*', norm) or any(w in norm for w in ["убил", "застрелил", "таран"]):
             cited_rules = ["5.4"]
             if any(w in norm for w in ["зз", "зелен", "gz"]):
                 cited_rules.append("GZ")
@@ -420,7 +540,7 @@ def _rule_based_triage(
         elif any(w in norm for w in ["чит", "софт", "аим", "рванка", "бот", "автокликер", "вх", "soft", "cheat", "aimbot"]):
             category = "complaint.cheat"
             cited_rules = ["5.2"]
-        elif re.search(r'\b(дм|дб|dm|db)\b', norm) or any(w in norm for w in ["убил", "застрелил", "таран", "нанесение урона", "deathmatch"]):
+        elif re.search(r'\b(за)?(дм|дб|dm|db)\w*', norm) or any(w in norm for w in ["убил", "застрелил", "таран", "нанесение урона", "deathmatch"]):
             category = "complaint.dm"
             cited_rules = ["5.4"]
             if any(w in norm for w in ["зз", "зелен", "gz", "green"]):
@@ -627,6 +747,8 @@ def _rule_based_triage(
                 draft_text = "Здравствуйте! Обращение по поводу аккаунта зарегистрировано и передано на проверку логов (пункт 1.4 правил)."
             elif category == "report.offtopic":
                 draft_text = "Здравствуйте! Пожалуйста, используйте репорт только по игровым вопросам (пункт 3.1 правил)."
+            elif category == "report.question":
+                draft_text = "Здравствуйте! Для поиска локаций и работы используйте команду /gps. Проверить уровень и баланс можно через /stats, а команды — /help. Приятной игры на Grand Mobile!"
             else:
                 draft_text = "Здравствуйте! Спасибо за обращение. Вопрос передан администраторам."
 
