@@ -14,7 +14,7 @@ if str(BASE_DIR) not in sys.path:
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import List, Optional, Any, Dict
 import uvicorn
 
@@ -42,15 +42,22 @@ def index():
 
 
 class MessageItem(BaseModel):
-    role: str
+    model_config = ConfigDict(extra="ignore")
+    role: str = "player"
     text: str
     attachments: Optional[int] = 0
     ts: Optional[str] = None
 
 
 class TriageRequest(BaseModel):
-    kind: str = Field(..., description="Тип обращения: 'complaint' или 'report'")
-    messages: List[MessageItem] = Field(..., description="Сообщения в тикете")
+    model_config = ConfigDict(extra="ignore")
+    kind: str = Field(default="complaint", description="Тип обращения: 'complaint' или 'report'")
+    messages: Optional[List[MessageItem]] = Field(default=None, description="Сообщения в тикете")
+    text: Optional[str] = Field(default=None, description="Одиночный текст тикета")
+    ticket_id: Optional[str] = None
+    channel: Optional[str] = None
+    author: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
 @app.get("/health")
@@ -61,12 +68,25 @@ def health():
 @app.post("/triage")
 def triage_endpoint(req: TriageRequest) -> Dict[str, Any]:
     """
-    Основной метод контракта:
+    Основной метод контракта POST /triage:
     Принимает JSON с тикетом, возвращает классификацию,
     извлечённые факты, черновик ответа со ссылками на правила и флаг needs_human.
     """
     try:
         payload = req.model_dump()
+        
+        # Если тикет передан как простой текст (из веб-формы или curl), оборачиваем в messages
+        if not payload.get("messages") and payload.get("text"):
+            payload["messages"] = [
+                {
+                    "role": "player",
+                    "text": payload["text"],
+                    "attachments": 0
+                }
+            ]
+        elif not payload.get("messages"):
+            payload["messages"] = []
+
         result = triage_ticket(payload)
         return result
     except Exception as e:
