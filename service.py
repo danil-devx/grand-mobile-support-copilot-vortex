@@ -5,9 +5,11 @@
 2. Надёжный эвристический fallback-движок (работает без API-ключа или при сбое сети)
 
 Строгое разделение типов обращений (Routing):
-1. Вопросы по геймплею и помощи (report.question / report.help) — понятные инструкции, без правил нарушений.
+1. Вопросы по геймплею и навигации (report.question / report.help) — понятные инструкции с /gps, /stats, /help, без правил нарушений.
 2. Жалобы и нарушения (complaint.* / ban) — правила нарушений из rules.json.
-3. Кросс-канальная маршрутизация (Канал vs Суть текста):
+3. Прямой мат, токсичность и оскорбления в тикете — пресечение нарушений (правила 2.1, 3.2), выставление мута и эскалация администрации.
+4. Оффтоп, флуд и бессмысленные сообщения — пресечение нецелевого использования (правило 3.1), предупреждение / мут репорта.
+5. Кросс-канальная маршрутизация (Канал vs Суть текста):
    - Геймплейный вопрос в форму жалобы -> complaint.invalid, правило ЖБ 1.1.2, вежливое перенаправление в репорт.
    - Жалоба на игрока во внутриигровой репорт -> report.complaint, слежка + перенаправление в раздел жалоб.
 
@@ -41,53 +43,65 @@ if OPENAI_API_KEY:
         print(f"Предупреждение: не удалось инициализировать OpenAI клиент: {e}")
 
 
-def _is_gameplay_question(norm: str) -> bool:
+def _is_direct_abuse(norm: str, nickname: Optional[str] = None) -> bool:
     """
-    Проверяет, является ли текст игрока обычным вопросом по геймплею, механике,
-    работам, уровням или помощи, а не жалобой на нарушения или игроков.
+    Определяет, содержит ли сообщение прямой мат, токсичность или оскорбления
+    в адрес администрации или в тексте тикета (а не жалобу на стороннего нарушителя).
     """
-    # Если в сообщении есть жалоба на нарушение — это НЕ геймплейный вопрос
-    if _is_complaint_intent(norm):
-        return False
+    norm = norm.strip().lower()
 
-    if any(w in norm for w in ["админ", "хелпер", "деморган", "jail", "взлом", "взломали", "украли аккаунт", "пароль", "не могу зайти", "донат", "оплат", "не пришли гк", "деньги списали", "hacked", "donate"]):
-        return False
-
-    if re.search(r'\b(бан|бана|баны|забанен\w*|разбан\w*|варн\w*|мут\w*|жалоб\w*)\b', norm):
-        return False
-
-    # Маркеры вопросов по геймплею и базовой помощи
-    gameplay_markers = [
-        # Вопросительные маркеры
-        "как", "где", "куда", "когда", "почему", "зачем", "сколько", "можно ли", "что делать",
-        # Работы и заработок
-        "шахт", "руд", "карьер", "завод", "ферм", "дальнобой", "грузчик", "работ", "устроит", "зарплат", "деньг", "доход",
-        # Финансы
-        "банк", "вклад", "депозит", "счет", "снять", "положить", "передать",
-        # Транспорт
-        "автосалон", "машин", "транспорт", "автомобил", "купить", "продать", "авторынок", "тюнинг",
-        # Права и лицензии
-        "права", "автошкол", "лицензи", "экзамен", "сдать", "вождение",
-        # Фракции и организации
-        "мэри", "правительств", "фракци", "организац", "собеседован", "инвайт", "ранг", "повышен",
-        # Навигация и координаты
-        "gps", "гпс", "навигатор", "карт", "найти", "место", "локаци", "где находится",
-        # Прокачка
-        "лвл", "уровен", "опыт", "exp", "стат", "скилл", "прокач",
-        # Команды и справка
-        "команд", "хелп", "помощ", "подскаж", "скаж", "инвентар", "квест",
-        # KK
-        "қалай", "қайда", "жұмыс", "ақша", "деңгей", "қанша", "көлік", "шахта", "банк",
-        # UZ
-        "qanday", "qayerda", "ish", "ishga", "daraja", "litsenziya", "qancha", "mashina", "bank", "shaxta",
-        # EN
-        "how", "where", "what", "which", "job", "mine", "mining", "work", "level", "salary", "gps", "money", "buy", "car", "bank",
-        # ES
-        "cómo", "dónde", "trabajo", "mina", "nivel", "salario", "cuánto", "dinero", "coche", "auto", "banco",
-        # PT
-        "como", "onde", "trabalho", "mina", "nível", "salário", "quanto", "dinheiro", "carro", "banco"
+    # Мат и жесткие оскорбления
+    profanity_patterns = [
+        r'\b(хуй|хуя|хуе|хуи|пизд\w*|ебат\w*|ебал\w*|ебан\w*|блять|блядь|сук[аи]|сучк\w*|пидор\w*|пидар\w*|гандон\w*|гондон\w*|мудак\w*|долбоеб\w*|долбаеб\w*|шлюх\w*|даун\w*|лох\w*|урод\w*|тварь\w*|мраз\w*|уеб\w*)\b',
+        r'\b(иди|пошел|пошли|соси|пососи)\s+(нахуй|в\s+пизду|хуй|член)\b',
+        r'\b(ты|вы)\s+(даун\w*|лох\w*|дурак\w*|дебил\w*|пидор\w*|клоун\w*|мудак\w*|урод\w*|мраз\w*|тупой|тупые)\b',
+        r'\b(админ\w*|хелпер\w*|разработчик\w*|саппорт\w*)\s+(лох\w*|пидор\w*|даун\w*|урод\w*|тупой|тупые|кончен\w*)\b',
+        r'\b(sikey|onangni|chort|sikaman)\b',
+        r'\b(fuck\s+you|bitch|stfu|asshole|idiot|dick)\b'
     ]
-    return any(gm in norm for gm in gameplay_markers)
+    has_profanity = any(re.search(pat, norm) for pat in profanity_patterns)
+    if not has_profanity:
+        return False
+
+    # Явные прямые наезды на поддержку/админов: всегда прямой абьюз
+    direct_attacks = [
+        r'\b(ты|вы)\s+(даун\w*|лох\w*|дурак\w*|дебил\w*|пидор\w*|клоун\w*|мудак\w*|урод\w*|мраз\w*|тупой|тупые)\b',
+        r'\b(админ\w*|хелпер\w*|саппорт\w*)\s+(лох\w*|пидор\w*|даун\w*|урод\w*|тупой|тупые|кончен\w*)\b',
+        r'\b(иди|пошел|пошли|соси|пососи)\s+(нахуй|в\s+пизду|хуй|член)\b'
+    ]
+    if any(re.search(pat, norm) for pat in direct_attacks):
+        return True
+
+    # Проверяем, является ли это жалобой на другого игрока
+    reporting_markers = [
+        r'\b(игрок\w*|чел\w*|он\w*|нарушител\w*|айди|\bid\b|\bid\s*\d+)\b',
+        r'\b(оскорбил\w*|оскнул\w*|обозвал\w*|написал\w*|сказал\w*|упомянул\w*)\b',
+        r'\b(накаж\w*|забан\w*|замут\w*|проверьте|следите|посадите)\b',
+        r'\b(скрин\w*|видео|доказ\w*|фрапс|тайм)\b'
+    ]
+    is_reporting_other = any(re.search(rm, norm) for rm in reporting_markers) or bool(nickname)
+    return not is_reporting_other
+
+
+def _is_nonsense_or_offtop(norm: str) -> bool:
+    """
+    Определяет бессмысленный оффтоп, флуд, клавиатурный спам или выпрашивание валюты/ТП (п. 3.1).
+    """
+    norm = norm.strip().lower()
+    if len(norm) <= 4 and norm not in ["дм", "дб", "вх", "гпс", "gps", "help", "жб"]:
+        return True
+    if re.search(r'(.)\1{4,}', norm):
+        return True
+    if any(km in norm for km in ["йцукен", "asdfg", "qwerty", "фывап", "zxcvb"]):
+        return True
+    begging_patterns = [
+        r'\b(дай|дайте|выдай\w*|подкинь\w*|накинь\w*)\s+(\w+\s+)?(денег|вирт\w*|рубл\w*|тачк\w*|машин\w*|донат\w*|ранг\w*|лвл\w*|админк\w*|гк)\b',
+        r'\b(тп|телепорт\w*)\s+(меня|к|на|в)\b',
+        r'^\s*(скучно|привет|ку|хай|куку|ау|пока|всем\s+ку|ало)\s*$'
+    ]
+    if any(re.search(pat, norm) for pat in begging_patterns):
+        return True
+    return False
 
 
 def _is_complaint_intent(norm: str) -> bool:
@@ -105,6 +119,63 @@ def _is_complaint_intent(norm: str) -> bool:
         re.IGNORECASE
     )
     return bool(complaint_pattern.search(norm))
+
+
+def _is_gameplay_question(norm: str) -> bool:
+    """
+    Проверяет, является ли текст игрока обычным вопросом по геймплею, навигации,
+    механикам, работам или помощи, а не жалобой на нарушения или игроков.
+    """
+    # Если в сообщении есть прямой абьюз, оффтоп или жалоба на нарушение — это НЕ геймплейный вопрос
+    if _is_direct_abuse(norm, None):
+        return False
+
+    if _is_nonsense_or_offtop(norm):
+        return False
+
+    if _is_complaint_intent(norm):
+        return False
+
+    if any(w in norm for w in ["админ", "хелпер", "деморган", "jail", "взлом", "взломали", "украли аккаунт", "пароль", "не могу зайти", "донат", "оплат", "не пришли гк", "деньги списали", "hacked", "donate"]):
+        return False
+
+    if re.search(r'\b(бан|бана|баны|забанен\w*|разбан\w*|варн\w*|мут\w*|жалоб\w*)\b', norm):
+        return False
+
+    # Маркеры вопросов по геймплею, навигации и базовой помощи
+    gameplay_markers = [
+        # Вопросительные маркеры
+        "как", "где", "куда", "когда", "почему", "зачем", "сколько", "можно ли", "что делать",
+        # Навигация и координаты
+        "gps", "гпс", "навигатор", "карт", "найти", "место", "локаци", "где находится", "доехать", "добраться",
+        # Государственные структуры и организации
+        "полици", "мвд", "гибдд", "увд", "дпс", "участок", "полицейск",
+        "больниц", "госпитал", "лечени", "врач", "медкарт", "вылечит",
+        "мэри", "правительств", "губернатор", "фракци", "организац", "собеседован", "инвайт", "ранг", "повышен",
+        # Автошкола и права
+        "права", "автошкол", "лицензи", "экзамен", "сдать", "вождение",
+        # Работы и заработок
+        "шахт", "руд", "карьер", "завод", "ферм", "дальнобой", "грузчик", "работ", "устроит", "зарплат", "деньг", "доход",
+        # Финансы
+        "банк", "банкомат", "вклад", "депозит", "счет", "снять", "положить", "передать",
+        # Транспорт
+        "автосалон", "машин", "транспорт", "автомобил", "купить", "продать", "авторынок", "тюнинг", "бу рынок",
+        # Прокачка
+        "лвл", "уровен", "опыт", "exp", "стат", "скилл", "прокач",
+        # Команды и справка
+        "команд", "хелп", "помощ", "подскаж", "скаж", "инвентар", "квест",
+        # KK
+        "қалай", "қайда", "жұмыс", "ақша", "деңгей", "қанша", "көлік", "шахта", "банк", "полиция", "аурухана", "әкімдік",
+        # UZ
+        "qanday", "qayerda", "ish", "ishga", "daraja", "litsenziya", "qancha", "mashina", "bank", "shaxta", "politsiya", "shifoxona",
+        # EN
+        "how", "where", "what", "which", "job", "mine", "mining", "work", "level", "salary", "gps", "money", "buy", "car", "bank", "police", "hospital",
+        # ES
+        "cómo", "dónde", "trabajo", "mina", "nivel", "salario", "cuánto", "dinero", "coche", "auto", "banco", "policía", "policia", "hospital",
+        # PT
+        "como", "onde", "trabalho", "mina", "nível", "salário", "quanto", "dinheiro", "carro", "banco", "polícia", "policia", "hospital"
+    ]
+    return any(gm in norm for gm in gameplay_markers)
 
 
 def _build_rules_cited(cited_refs: List[str]) -> List[Dict[str, str]]:
@@ -136,15 +207,26 @@ def _build_facts_extracted(
     Формирует структурированный список ключевых фактов, извлеченных из сообщения игрока.
     """
     items = []
-    kind_name = "Жалоба на игрока" if kind == "complaint" else "Внутриигровой репорт"
-    items.append(f"Канал обращения: {kind_name}")
+    kind_labels = {
+        "complaint": "Жалоба на игрока / форум (complaint)",
+        "report": "Внутриигровой репорт (report)",
+        "question": "Вопрос / Помощь (question)"
+    }
+    items.append(f"Канал обращения: {kind_labels.get(kind, kind)}")
 
     if intent_type == "gameplay":
-        items.append("Суть обращения: Вопрос по игровому процессу / механике / помощи")
+        items.append("Суть обращения: Вопрос по навигации / игровому процессу / механике")
     elif intent_type == "help_stuck":
         items.append("Суть обращения: Просьба о технической помощи (застрял / баг)")
+    elif intent_type == "direct_abuse":
+        items.append("Суть обращения: Прямое оскорбление / ненормативная лексика в адрес проекта или администрации")
+        items.append("Нарушение: Пункты 2.1 (оскорбления), 3.2 (хамство/неуважение к администрации)")
+        items.append("Требуемое действие: Выдача MUTE от 15 до 60 минут или блокировка персонажа")
+    elif intent_type == "offtop_spam":
+        items.append("Суть обращения: Оффтоп / флуд / нецелевое использование канала обращений")
+        items.append("Требуемое действие: Предупреждение или блокировка репорта (MUTE REPORT до 30 мин, п. 3.1)")
     else:
-        items.append("Суть обращения: Заявление о нарушении правил игры")
+        items.append("Суть обращения: Заявление о нарушении правил игры другим игроком")
 
     if is_mismatch:
         items.append("Маршрутизация: Выявлено несоответствие выбранного канала и сути вопроса (требуется перенаправление)")
@@ -159,7 +241,7 @@ def _build_facts_extracted(
         else:
             items.append("Доказательства: имеются ссылки/таймкоды в тексте сообщения")
     else:
-        if intent_type != "gameplay":
+        if intent_type not in ["gameplay", "direct_abuse", "offtop_spam"]:
             items.append("Доказательства: не приложены")
 
     if cited_rules:
@@ -173,7 +255,7 @@ def _build_facts_extracted(
 
 
 def _rule_based_triage(
-    kind: str,
+    orig_kind: str,
     text: str,
     facts: Dict[str, Any],
     matched_rules: List[Dict[str, str]]
@@ -187,16 +269,125 @@ def _rule_based_triage(
     nickname = facts["nickname"]
     has_evidence = facts["has_evidence"]
 
-    # Нормализуем тип обращения: help -> report
-    if kind in ["help", "question"]:
-        kind = "report"
-
     reply_lang = lang if lang in ["ru", "kk", "uz", "en", "es", "pt"] else "ru"
 
     # =========================================================================
-    # СЦЕНАРИЙ 1: Кросс-канальный Mismatch — Игрок задал вопрос по геймплею через форму жалобы!
+    # 0. ПРОВЕРКА НА ПРЯМОЙ МАТ, ТОКСИЧНОСТЬ И ОСКОРБЛЕНИЯ В АДРЕС ПРОЕКТА / АДМИНИСТРАЦИИ
     # =========================================================================
-    if kind == "complaint" and _is_gameplay_question(norm):
+    if _is_direct_abuse(norm, nickname):
+        category = "report.offtopic" if orig_kind != "complaint" else "complaint.invalid"
+        cited_rules = ["2.1", "3.2"] if any(w in norm for w in ["админ", "хелпер", "вы", "саппорт", "сервер"]) else ["2.1"]
+        priority = "p1"
+        needs_human = True
+        reasons = ["Обнаружено прямое оскорбление / ненормативная лексика в обращении. Нарушение правил 2.1, 3.2. Требуется выдача блокировки чата (MUTE) администратором."]
+
+        draft_templates = {
+            "ru": (
+                "Здравствуйте! Использование ненормативной лексики, оскорбления и хамство в обращениях "
+                "строго запрещены правилами сервера (пункты 2.1, 3.2 правил). За данное нарушение предусмотрена блокировка чата "
+                "(MUTE от 15 до 60 минут) или блокировка персонажа. Обращение передано администрации для выдачи соответствующего наказания. "
+                "Пожалуйста, соблюдайте субординацию и правила проекта."
+            ),
+            "kk": (
+                "Сәлеметсіз бе! Өтініштерде былапыт сөздер, қорлау және әкімшілікке құрметсіздік танытуға сервер ережелерімен "
+                "қатаң тыйым салынады (2.1, 3.2 тармақтары). Бұл бұзушылық үшін чатты бұғаттау (15-тен 60 минутқа дейін MUTE) "
+                "немесе кейіпкерді бұғаттау қарастырылған. Өтініш жаза қолдану үшін әкімшілікке берілді."
+            ),
+            "uz": (
+                "Salom! Murojaatlarda haqoratli so'zlar, behayo so'kinish va ma'muriyatga hurmatsizlik qilish "
+                "server qoidalariga ko'ra qat'iyan man etiladi (2.1, 3.2-bandlar). Ushbu qoidabuzarlik uchun chat bloklanishi "
+                "(15 dan 60 daqiqagacha MUTE) ko'zda tutilgan. Murojaat jazo qo'llash uchun ma'muriyatga topshirildi."
+            ),
+            "en": (
+                "Hello! Using profanity, insults, or disrespectful language in support tickets is strictly prohibited "
+                "by server rules (rules 2.1, 3.2). This violation results in a chat mute (MUTE from 15 to 60 minutes) "
+                "or account suspension. Your ticket has been forwarded to administrators for appropriate sanctions."
+            ),
+            "es": (
+                "¡Hola! El uso de lenguaje obsceno e insultos en los reportes está estrictamente prohibido por las reglas del servidor "
+                "(reglas 2.1, 3.2). Esta infracción conlleva el bloqueo del chat (MUTE de 15 a 60 minutos) o suspensión del personaje. "
+                "El caso ha sido transferido a la administración para la sanción correspondiente."
+            ),
+            "pt": (
+                "Olá! O uso de linguagem ofensiva e desrespeito nos tíquetes é estritamente proibido pelas regras do servidor "
+                "(regras 2.1, 3.2). Esta infração acarreta o bloqueio do chat (MUTE de 15 a 60 minutos) ou suspensão do personagem. "
+                "O tíquete foi transferido para a administração para sanção cabível."
+            )
+        }
+        draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
+        rules_cited = _build_rules_cited(cited_rules)
+        facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="direct_abuse")
+        return {
+            "category": category,
+            "lang": reply_lang,
+            "priority": priority,
+            "is_spam_or_duplicate": True,
+            "facts_extracted": facts_extracted,
+            "extracted": {"nickname": nickname, "rule_refs": cited_rules, "has_evidence": has_evidence, "server": None},
+            "draft_reply": {"lang": reply_lang, "text": draft_text, "rules_cited": rules_cited, "cited": cited_rules},
+            "needs_human": needs_human,
+            "confidence": 0.95,
+            "reasons": reasons
+        }
+
+    # =========================================================================
+    # 0.1 ПРОВЕРКА НА БЕССМЫСЛЕННЫЙ ОФФТОП, ФЛУД ИЛИ ВЫПРАШИВАНИЕ (п. 3.1)
+    # =========================================================================
+    if _is_nonsense_or_offtop(norm):
+        category = "report.offtopic"
+        cited_rules = ["3.1"]
+        priority = "p3"
+        needs_human = False
+        reasons = ["Оффтоп / флуд / нецелевое использование канала обращений. Нарушение пункта 3.1 правил."]
+
+        draft_templates = {
+            "ru": (
+                "Здравствуйте! Канал обращений предназначен исключительно для конструктивных игровых вопросов и жалоб. "
+                "Оффтоп, флуд, бессмысленные сообщения и просьбы о выдаче валюты/телепорта запрещены правилами сервера (пункт 3.1) "
+                "и влекут за собой блокировку репорта (MUTE REPORT до 30 минут). Пожалуйста, соблюдайте правила проекта."
+            ),
+            "kk": (
+                "Сәлеметсіз бе! Репорт тек ойын бойынша сұрақтар мен шағымдарға арналған. Оффтоп, флуд және ақша немесе телепорт "
+                "сұрауға ереже бойынша тыйым салынады (3.1 тармақ, MUTE REPORT 30 минутқа дейін). Ережені сақтауыңызды сұраймыз."
+            ),
+            "uz": (
+                "Salom! Report faqat o'yin savollari va shikoyatlar uchun mo'ljallangan. Offtop, behuda xabarlar hamda pul yoki teleport "
+                "so'rash server qoidalariga zid (3.1-band, MUTE REPORT 30 daqiqagacha). Iltimos, server qoidalariga rioya qiling."
+            ),
+            "en": (
+                "Hello! The support channel is intended solely for constructive game inquiries and reports. "
+                "Offtop, spam, meaningless text, and begging for money or teleportation are prohibited (rule 3.1) "
+                "and subject to a report mute (MUTE REPORT up to 30 min). Please follow the server rules."
+            ),
+            "es": (
+                "¡Hola! El canal de soporte está destinado exclusivamente a consultas y quejas constructivas. "
+                "El offtop, spam y pedir dinero o teletransporte están prohibidos (regla 3.1) y conllevan bloqueo de reportes (MUTE REPORT hasta 30 min)."
+            ),
+            "pt": (
+                "Olá! O canal de suporte destina-se apenas a dúvidas e denúncias construtivas sobre o jogo. "
+                "Offtop, spam e pedir dinheiro ou teletransporte são proibidos (regla 3.1) e sujeitos a bloqueio de reporte (MUTE REPORT até 30 min)."
+            )
+        }
+        draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
+        rules_cited = _build_rules_cited(cited_rules)
+        facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="offtop_spam")
+        return {
+            "category": category,
+            "lang": reply_lang,
+            "priority": priority,
+            "is_spam_or_duplicate": True,
+            "facts_extracted": facts_extracted,
+            "extracted": {"nickname": nickname, "rule_refs": cited_rules, "has_evidence": has_evidence, "server": None},
+            "draft_reply": {"lang": reply_lang, "text": draft_text, "rules_cited": rules_cited, "cited": cited_rules},
+            "needs_human": needs_human,
+            "confidence": 0.90,
+            "reasons": reasons
+        }
+
+    # =========================================================================
+    # СЦЕНАРИЙ 1: Кросс-канальный Mismatch — Вопрос по геймплею/навигации через форму жалобы!
+    # =========================================================================
+    if orig_kind == "complaint" and _is_gameplay_question(norm):
         category = "complaint.invalid"
         cited_rules = ["ЖБ 1.1.2"]
         priority = "p3"
@@ -244,7 +435,7 @@ def _rule_based_triage(
         draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
 
         rules_cited = _build_rules_cited(cited_rules)
-        facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=True, intent_type="gameplay")
+        facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=True, intent_type="gameplay")
 
         return {
             "category": category,
@@ -270,10 +461,10 @@ def _rule_based_triage(
         }
 
     # =========================================================================
-    # СЦЕНАРИЙ 2: Вопрос по геймплею в репорте / помощи
+    # СЦЕНАРИЙ 2: Вопрос по геймплею, навигации, механикам в репорте / помощи
     # =========================================================================
-    if kind == "report" and _is_gameplay_question(norm):
-        # 1. Если игрок конкретно застрял в текстурах
+    if orig_kind in ["report", "question", "help"] and _is_gameplay_question(norm):
+        # 1. Если игрок застрял в текстурах
         if any(w in norm for w in ["застрял", "текстур", "не могу пошевелит", "вытащите", "stuck", "tiqilib"]):
             category = "report.help"
             priority = "p2"
@@ -290,7 +481,7 @@ def _rule_based_triage(
             draft_text = help_templates.get(reply_lang, help_templates["ru"])
             cited_rules = []
             rules_cited = []
-            facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="help_stuck")
+            facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="help_stuck")
             return {
                 "category": category,
                 "lang": reply_lang,
@@ -304,13 +495,14 @@ def _rule_based_triage(
                 "reasons": reasons
             }
 
-        # 2. Игровые механики, работы, навигация
+        # 2. Игровые механики, навигация, работы, организации
         category = "report.question"
         cited_rules = []  # Правила нарушений категорически не применяются
         priority = "p3"
         needs_human = False
-        reasons = ["Вопрос по игровым механикам классифицирован как report.question, подготовлена подробная инструкция."]
+        reasons = ["Вопрос по навигации / игровым механикам классифицирован как report.question, подготовлена четкая инструкция с /gps."]
 
+        # 2.1 Шахта и добыча руды
         if any(w in norm for w in ["шахт", "руд", "карьер", "ископаем"]):
             job_templates = {
                 "ru": (
@@ -349,7 +541,76 @@ def _rule_based_triage(
                 )
             }
             draft_text = job_templates.get(reply_lang, job_templates["ru"])
-        elif any(w in norm for w in ["банк", "вклад", "депозит", "счет", "снять деньги"]):
+
+        # 2.2 Полиция / МВД / ГИБДД
+        elif any(w in norm for w in ["полици", "мвд", "гибдд", "увд", "дпс", "участок", "police"]):
+            police_templates = {
+                "ru": (
+                    "Здравствуйте! Чтобы добраться до ближайшего отделения полиции (МВД / ГИБДД), откройте навигатор: введите команду /gps "
+                    "и выберите раздел «Государственные организации» → «Полиция (МВД / ГИБДД)». На вашей карте появится метка с маршрутом. "
+                    "В отделе полиции вы можете оплатить штрафы, подать заявление или узнать критерии для поступления на службу. "
+                    "Проверить статус персонажа: /stats, список команд: /help. Приятной игры!"
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Жақын маңдағы полиция бөлімін (ІІМ / ЖҚП) табу үшін /gps командасын енгізіп, "
+                    "«Мемлекеттік ұйымдар» → «Полиция» бөлімін таңдаңыз. Картада бағыт пайда болады. "
+                    "Полицияда айыппұл төлеуге және қызметке орналасу шарттарын білуге болады. Командалар: /help."
+                ),
+                "uz": (
+                    "Salom! Yaqin atrofdagi politsiya bo'limini (IIV / YPX) topish uchun /gps buyrug'ini kiriting va "
+                    "«Davlat tashkilotlari» → «Politsiya» bo'limini tanlang. Xaritada yo'nalish belgilanadi. "
+                    "U yerda jarimalarni to'lash va xizmatga kirish shartlarini bilish mumkin. Buyruqlar: /help."
+                ),
+                "en": (
+                    "Hello! To find the nearest Police Department (PD / Traffic Police), enter /gps → «Government Organizations» → «Police Department». "
+                    "A navigation marker will appear on your map. You can pay fines and apply for service there. "
+                    "Check your status with /stats, commands: /help."
+                ),
+                "es": (
+                    "¡Hola! Para encontrar la comisaría de Policía más cercana, usa el GPS: ingresa /gps → «Organizaciones Estatales» → «Policía». "
+                    "Aparecerá un marcador en tu mapa. Allí puedes pagar multas y solicitar unirte. Comandos: /help."
+                ),
+                "pt": (
+                    "Olá! Para encontrar a delegacia de Polícia mais próxima, use o GPS: comando /gps → «Organizações Governamentais» → «Polícia». "
+                    "Um marcador aparecerá no seu mapa. Lá você pode pagar multas e se alistar. Comandos: /help."
+                )
+            }
+            draft_text = police_templates.get(reply_lang, police_templates["ru"])
+
+        # 2.3 Больница / Центральная городская больница
+        elif any(w in norm for w in ["больниц", "госпитал", "лечени", "врач", "медкарт", "hospital"]):
+            hospital_templates = {
+                "ru": (
+                    "Здравствуйте! Найти Центральную городскую больницу можно через встроенный навигатор: введите команду /gps "
+                    "и выберите «Государственные организации» → «Больница (ЦБ)». На карте появится маршрут до медицинского центра. "
+                    "В больнице вы можете восстановить здоровье, оформить медицинскую карту у дежурного врача и приобрести рецепты. "
+                    "Узнать статистику персонажа: /stats, помощь по командам: /help."
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Орталық қалалық аурухананы табу үшін /gps командасын енгізіп, «Мемлекеттік ұйымдар» → «Аурухана» бөлімін таңдаңыз. "
+                    "Ауруханада денсаулықты қалпына келтіруге және медициналық карта алуға болады. Командалар: /help."
+                ),
+                "uz": (
+                    "Salom! Markaziy shahar shifoxonasini topish uchun /gps buyrug'ini kiriting va «Davlat tashkilotlari» → «Shifoxona» bo'limini tanlang. "
+                    "Shifoxonada sog'ligingizni tiklashingiz va tibbiy karta olishingiz mumkin. Buyruqlar: /help."
+                ),
+                "en": (
+                    "Hello! To find the Central Hospital, open the GPS: enter /gps → «Government Organizations» → «Hospital». "
+                    "Follow the map marker. At the hospital, you can heal, receive a medical card, and consult doctors. Stats: /stats, commands: /help."
+                ),
+                "es": (
+                    "¡Hola! Para encontrar el Hospital Central, usa el GPS: ingresa /gps → «Organizaciones Estatales» → «Hospital». "
+                    "En el hospital puedes curarte y obtener tu tarjeta médica. Todos los comandos: /help."
+                ),
+                "pt": (
+                    "Olá! Para encontrar o Hospital Central, use o GPS: comando /gps → «Organizações Governamentais» → «Hospital». "
+                    "Lá você pode recuperar sua saúde e obter sua ficha médica. Todos os comandos: /help."
+                )
+            }
+            draft_text = hospital_templates.get(reply_lang, hospital_templates["ru"])
+
+        # 2.4 Банки и банкоматы
+        elif any(w in norm for w in ["банк", "банкомат", "вклад", "депозит", "счет", "снять деньги", "bank"]):
             bank_templates = {
                 "ru": (
                     "Здравствуйте! Ближайшее отделение банка можно найти через навигатор: введите команду /gps "
@@ -378,13 +639,110 @@ def _rule_based_triage(
                 )
             }
             draft_text = bank_templates.get(reply_lang, bank_templates["ru"])
+
+        # 2.5 Мэрия / Правительство
+        elif any(w in norm for w in ["мэри", "правительств", "губернатор", "government"]):
+            gov_templates = {
+                "ru": (
+                    "Здравствуйте! Чтобы найти здание Правительства (Мэрию), откройте навигатор: введите команду /gps "
+                    "и выберите раздел «Государственные организации» → «Правительство (Мэрия)». "
+                    "В Правительстве решаются государственные вопросы, регистрируются браки и проводятся приёмы граждан. "
+                    "Статистика персонажа: /stats, список всех команд: /help. Приятной игры!"
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Үкімет (Әкімдік) ғимаратын табу үшін /gps командасын енгізіп, «Мемлекеттік ұйымдар» → «Үкімет» бөлімін таңдаңыз. "
+                    "Кейіпкер деңгейін /stats, ал командаларды /help арқылы көре аласыз."
+                ),
+                "uz": (
+                    "Salom! Hukumat (Hokimiyat) binosini topish uchun /gps buyrug'ini kiriting va «Davlat tashkilotlari» → «Hukumat» bo'limini tanlang. "
+                    "Darajangizni /stats, buyruqlarni esa /help orqali bilib oling."
+                ),
+                "en": (
+                    "Hello! To find City Hall (Government), open the GPS: enter /gps → «Government Organizations» → «Government». "
+                    "Check character stats with /stats and commands with /help."
+                ),
+                "es": (
+                    "¡Hola! Para encontrar el Ayuntamiento (Gobierno), usa el GPS: ingresa /gps → «Organizaciones Estatales» → «Gobierno». "
+                    "Consulta estadísticas con /stats y comandos con /help."
+                ),
+                "pt": (
+                    "Olá! Para encontrar a Prefeitura (Governo), use o GPS: comando /gps → «Organizações Governamentais» → «Governo». "
+                    "Confira status com /stats e comandos com /help."
+                )
+            }
+            draft_text = gov_templates.get(reply_lang, gov_templates["ru"])
+
+        # 2.6 Автошкола и права
+        elif any(w in norm for w in ["автошкол", "права", "лицензи", "экзамен", "вожден"]):
+            autoschool_templates = {
+                "ru": (
+                    "Здравствуйте! Автошколу для сдачи экзамена на права можно найти через встроенный навигатор: "
+                    "введите команду /gps и выберите «Государственные организации / Важные места» → «Автошкола». "
+                    "В здании автошколы необходимо пройти теоретический тест и практический экзамен по вождению. "
+                    "Проверить наличие имеющихся лицензий можно через команду /stats. Список команд: /help."
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Жүргізуші куәлігін алу үшін автомектепті /gps → «Автомектеп» бөлімінен таба аласыз. "
+                    "Теориялық және практикалық емтихан тапсыру қажет. Лицензияларды /stats арқылы тексеріңіз."
+                ),
+                "uz": (
+                    "Salom! Haydovchilik guvohnomasini olish uchun avtomaktabni /gps → «Avtomaktab» orqali topishingiz mumkin. "
+                    "Nazariy va amaliy imtihon topshiriladi. Litsenziyalaringizni /stats orqali tekshiring."
+                ),
+                "en": (
+                    "Hello! You can find the Driving School via GPS: enter /gps → «Driving School». "
+                    "Pass the theory and practical driving tests to earn your license. Check licenses with /stats."
+                ),
+                "es": (
+                    "¡Hola! Puedes encontrar la Autoescuela con el GPS: comando /gps → «Autoescuela». "
+                    "Aprueba el examen teórico y práctico para obtener tu licencia. Consulta con /stats."
+                ),
+                "pt": (
+                    "Olá! Encontre a Autoescola pelo GPS: comando /gps → «Autoescola». "
+                    "Passe nos exames teórico e prático para obter sua carteira de motorista. Veja com /stats."
+                )
+            }
+            draft_text = autoschool_templates.get(reply_lang, autoschool_templates["ru"])
+
+        # 2.7 Автосалоны и покупка авто
+        elif any(w in norm for w in ["автосалон", "авторынок", "бу рынок", "купить машину", "автомобил"]):
+            autosalon_templates = {
+                "ru": (
+                    "Здравствуйте! Чтобы выбрать и приобрести автомобиль, откройте навигатор: введите команду /gps "
+                    "и перейдите в раздел «Автосалоны и авторынки». Вы можете выбрать автосалон низкого, среднего или высокого класса, "
+                    "либо отправиться на Б/У авторынок для покупки авто у других игроков. Проверить баланс и слоты: /stats."
+                ),
+                "kk": (
+                    "Сәлеметсіз бе! Көлік сатып алу үшін /gps командасын енгізіп, «Автосалондар және автонарықтар» бөлімін таңдаңыз. "
+                    "Қаражатыңызды /stats арқылы тексере аласыз."
+                ),
+                "uz": (
+                    "Salom! Mashina sotib olish uchun /gps buyrug'ini kiriting va «Avtosalonlar va avtobozor» bo'limini tanlang. "
+                    "Mablag'ingizni /stats orqali tekshiring."
+                ),
+                "en": (
+                    "Hello! To buy a car, use the GPS: enter /gps → «Car Dealerships & Car Market». "
+                    "You can choose between low, medium, high class salons or the used car market. Stats: /stats."
+                ),
+                "es": (
+                    "¡Hola! Para comprar un coche, usa el GPS: ingresa /gps → «Concesionarios de autos y mercado». "
+                    "Puedes elegir entre varias clases de vehículos. Consulta tu saldo con /stats."
+                ),
+                "pt": (
+                    "Olá! Para comprar um carro, use o GPS: comando /gps → «Concessionárias e feira de veículos». "
+                    "Escolha o modelo de acordo com seu orçamento. Veja saldo com /stats."
+                )
+            }
+            draft_text = autosalon_templates.get(reply_lang, autosalon_templates["ru"])
+
+        # 2.8 Общая навигация и команды игры
         else:
             draft_templates = {
                 "ru": (
                     "Здравствуйте! Для поиска нужной локации или работы используйте встроенный навигатор: введите команду /gps "
-                    "и выберите интересующий раздел (Поиск работы, Государственные учреждения, Банк). "
-                    "Уровень персонажа и текущую зарплату можно посмотреть командой /stats, а список всех команд — /help. "
-                    "Приятной игры на Grand Mobile!"
+                    "и выберите интересующий раздел (Поиск работы, Государственные организации, Банки, Автосалоны). "
+                    "На миникарте появится красный маркер. Уровень персонажа и текущую зарплату можно посмотреть командой /stats, "
+                    "а список всех доступных команд — /help. Приятной игры на Grand Mobile!"
                 ),
                 "kk": (
                     "Сәлеметсіз бе! Қажетті орынды немесе жұмысты табу үшін ойын навигаторын қолданыңыз: /gps командасын енгізіп, "
@@ -398,7 +756,7 @@ def _rule_based_triage(
                 ),
                 "en": (
                     "Hello! To find any location or job, please use the in-game GPS: enter /gps and choose the desired category (Jobs, Bank, Government). "
-                    "You can check your character level and stats with /stats, and see all available commands with /help. "
+                    "A marker will guide you on the map. Check your level and stats with /stats, and see all available commands with /help. "
                     "Enjoy playing Grand Mobile!"
                 ),
                 "es": (
@@ -408,14 +766,14 @@ def _rule_based_triage(
                 ),
                 "pt": (
                     "Olá! Para encontrar qualquer local ou trabalho, use o GPS do jogo: digite o comando /gps e escolha a categoria desejada (Buscar emprego, Banco, Governo). "
-                    "Você pode conferir seu nível e estatísticas com /stats, e ver todos os comandos com /help. "
+                    "Você pode conferir seu nível e estatísticas com /stats, и ver todos os comandos com /help. "
                     "Bom jogo no Grand Mobile!"
                 )
             }
             draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
 
         rules_cited = []
-        facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="gameplay")
+        facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="gameplay")
 
         return {
             "category": category,
@@ -440,9 +798,10 @@ def _rule_based_triage(
             "reasons": reasons
         }
 
-    # СЦЕНАРИЙ 3: Кросс-канальный Mismatch — Жалоба на нарушение через репорт (kind == "report")
     # =========================================================================
-    if kind == "report" and _is_complaint_intent(norm):
+    # СЦЕНАРИЙ 3: Кросс-канальный Mismatch — Жалоба на нарушение через репорт / вопрос
+    # =========================================================================
+    if orig_kind in ["report", "question", "help"] and _is_complaint_intent(norm):
         category = "report.complaint"
         cited_rules = []
 
@@ -501,7 +860,7 @@ def _rule_based_triage(
         draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
 
         rules_cited = _build_rules_cited(cited_rules)
-        facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=True, intent_type="complaint")
+        facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=True, intent_type="complaint")
 
         return {
             "category": category,
@@ -529,6 +888,7 @@ def _rule_based_triage(
     # =========================================================================
     # СЦЕНАРИЙ 4: Обычная классификация (Жалобы в complaint, тех. помощь в report)
     # =========================================================================
+    kind = orig_kind if orig_kind == "complaint" else "report"
     category = "complaint.other" if kind == "complaint" else "report.question"
     cited_rules = []
 
@@ -557,7 +917,7 @@ def _rule_based_triage(
         elif len(norm.strip()) < 5 or (not has_evidence and not nickname):
             category = "complaint.invalid"
             cited_rules = ["ЖБ 1.1.2"]
-    else:  # report
+    else:  # report / question
         if any(w in norm for w in ["застрял", "текстур", "помогите выбраться", "спавн", "тп", "перевернулся", "stuck"]):
             category = "report.help"
             cited_rules = ["3.1"]
@@ -756,7 +1116,7 @@ def _rule_based_triage(
     rules_cited = _build_rules_cited(cited_rules)
 
     # Список ключевых фактов
-    facts_extracted = _build_facts_extracted(kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="complaint" if kind == "complaint" else "help_stuck")
+    facts_extracted = _build_facts_extracted(orig_kind, reply_lang, facts, cited_rules, is_mismatch=False, intent_type="complaint" if kind == "complaint" else "help_stuck")
 
     return {
         "category": category,
@@ -786,20 +1146,20 @@ def triage_ticket(payload: Dict[str, Any]) -> Dict[str, Any]:
     """
     Основная точка входа для триажа одного обращения.
     Принимает payload формата POST /triage:
-    { "kind": "complaint"|"report", "messages": [ ... ] }
+    { "kind": "complaint"|"report"|"question", "messages": [ ... ] }
     """
-    kind = payload.get("kind", "complaint")
+    orig_kind = payload.get("kind") or "report"
     messages = payload.get("messages", [])
 
     # 1. Извлечение фактов и RAG
-    facts = extract_ticket_facts(messages, kind=kind)
+    facts = extract_ticket_facts(messages, kind=orig_kind)
     matched_rules = kb.search_rules(facts["combined_text"], limit=3)
 
     # 2. Если есть LLM-клиент — пробуем запросить нейросеть
     if client:
         try:
             user_prompt = build_user_prompt(
-                kind=kind,
+                kind=orig_kind,
                 text=facts["combined_text"],
                 attachments_count=facts["attachments_count"],
                 matched_rules=matched_rules
@@ -821,17 +1181,14 @@ def triage_ticket(payload: Dict[str, Any]) -> Dict[str, Any]:
             # Валидация обязательных полей контракта
             required_keys = ["category", "lang", "facts_extracted", "draft_reply"]
             if all(k in result_json for k in required_keys):
-                # Дополнительная проверка на принудительный human handoff
                 if result_json.get("category") in kb.needs_human_always:
                     result_json["needs_human"] = True
                 
-                # Обеспечиваем наличие rules_cited с верифицированными цитатами
                 draft = result_json.get("draft_reply", {})
                 if "rules_cited" not in draft or not draft["rules_cited"]:
                     cited_list = draft.get("cited", [])
                     draft["rules_cited"] = _build_rules_cited(cited_list)
                 
-                # Обеспечиваем обратную совместимость с extracted и cited
                 if "extracted" not in result_json:
                     result_json["extracted"] = {
                         "nickname": facts["nickname"],
@@ -845,8 +1202,7 @@ def triage_ticket(payload: Dict[str, Any]) -> Dict[str, Any]:
                 return result_json
 
         except Exception as e:
-            # Логируем и мягко переключаемся на экспертный fallback
             print(f"Ошибка LLM инференса, переключение на fallback: {e}")
 
     # 3. Экспертный Fallback (работает всегда)
-    return _rule_based_triage(kind, facts["combined_text"], facts, matched_rules)
+    return _rule_based_triage(orig_kind, facts["combined_text"], facts, matched_rules)

@@ -327,6 +327,70 @@
       color: #ff4d6d;
     }
 
+    /* Channel Selector (Kind) Segment Control */
+    .channel-box {
+      margin-bottom: 18px;
+    }
+
+    .channel-pills-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    @media (max-width: 640px) {
+      .channel-pills-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .channel-pill-btn {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 35, 75, 0.22);
+      border-radius: 10px;
+      padding: 10px 12px;
+      color: #cbd5e1;
+      font-family: inherit;
+      font-size: 12.5px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      transition: all 0.2s ease;
+      user-select: none;
+      text-align: left;
+    }
+
+    .channel-pill-btn:hover {
+      background: rgba(255, 23, 68, 0.15);
+      border-color: rgba(255, 23, 68, 0.5);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .channel-pill-btn.active {
+      background: linear-gradient(135deg, rgba(190, 18, 60, 0.88) 0%, rgba(255, 23, 68, 0.95) 100%);
+      border-color: #ff1744;
+      color: #ffffff;
+      box-shadow: 0 4px 18px rgba(255, 23, 68, 0.45);
+    }
+
+    .channel-pill-title {
+      font-weight: 700;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .channel-pill-code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      opacity: 0.85;
+      text-transform: uppercase;
+    }
+
     /* Quick Preset Scenarios Ribbon */
     .presets-box {
       margin-bottom: 18px;
@@ -889,6 +953,29 @@
           <span style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">INPUT WORKBENCH</span>
         </div>
 
+        <!-- Channel Selector (Kind): report / complaint / question -->
+        <div class="channel-box">
+          <div class="chips-label">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+            <span>Канал обращения (Kind):</span>
+          </div>
+          <div class="channel-pills-grid">
+            <button type="button" class="channel-pill-btn active" id="channel-btn-report" onclick="selectChannel('report')">
+              <span class="channel-pill-title">🎮 Репорт</span>
+              <span class="channel-pill-code">kind: "report"</span>
+            </button>
+            <button type="button" class="channel-pill-btn" id="channel-btn-complaint" onclick="selectChannel('complaint')">
+              <span class="channel-pill-title">📋 Жалоба на игрока</span>
+              <span class="channel-pill-code">kind: "complaint"</span>
+            </button>
+            <button type="button" class="channel-pill-btn" id="channel-btn-question" onclick="selectChannel('question')">
+              <span class="channel-pill-title">❓ Вопрос / Помощь</span>
+              <span class="channel-pill-code">kind: "question"</span>
+            </button>
+          </div>
+          <input type="hidden" id="selected-kind" value="report">
+        </div>
+
         <!-- Quick Test Scenario Presets -->
         <div class="presets-box">
           <div class="chips-label">
@@ -897,15 +984,19 @@
           </div>
           <div class="chips-flex">
             <button type="button" class="chip-action chip-gp-highlight" onclick="applyPreset('mine')">💼 Работа на шахте (Геймплей)</button>
-            <button type="button" class="chip-action" onclick="applyPreset('insult')">🤬 Оскорбление (п. 2.1)</button>
+            <button type="button" class="chip-action chip-gp-highlight" onclick="applyPreset('police')">👮 Найти полицию МВД (GPS)</button>
+            <button type="button" class="chip-action chip-gp-highlight" onclick="applyPreset('hospital')">🏥 Больница ЦБ (GPS)</button>
+            <button type="button" class="chip-action" onclick="applyPreset('insult')">🤬 Оскорбление родных (п. 2.1)</button>
             <button type="button" class="chip-action" onclick="applyPreset('cheat')">⚡ Чит / Fly (п. 5.2)</button>
             <button type="button" class="chip-action" onclick="applyPreset('dm')">🔫 DM у банка (п. 5.4)</button>
             <button type="button" class="chip-action chip-warn" onclick="applyPreset('mismatch')">⚠️ Мисматч: Вопрос в Жалобы</button>
+            <button type="button" class="chip-action" style="border-color: rgba(239, 68, 68, 0.6); color: #fca5a5;" onclick="applyPreset('abuse')">🚨 Мат / Оскорбление в тикет (п. 2.1, 3.2)</button>
+            <button type="button" class="chip-action" style="border-color: rgba(245, 158, 11, 0.5); color: #fde68a;" onclick="applyPreset('offtop')">🛑 Оффтоп / Выпрашивание (п. 3.1)</button>
             <button type="button" class="chip-action" onclick="applyPreset('kz')">🇰🇿 Қазақ тілі (Жұмыс табу)</button>
-            <button type="button" class="chip-action" onclick="applyPreset('uz')">🇺🇿 O'zbek tili (Akkaunt blok)</button>
-            <button type="button" class="chip-action" onclick="applyPreset('en')">🇬🇧 English (Speed hack)</button>
-            <button type="button" class="chip-action" onclick="applyPreset('es')">🇪🇸 Español (Comprar coche)</button>
-            <button type="button" class="chip-action" onclick="applyPreset('pt')">🇧🇷 Português (Desbanir conta)</button>
+            <button type="button" class="chip-action" onclick="applyPreset('uz')">🇺🇿 O'zbek tili (Shaxta va bank)</button>
+            <button type="button" class="chip-action" onclick="applyPreset('en')">🇬🇧 English (Police & GPS)</button>
+            <button type="button" class="chip-action" onclick="applyPreset('es')">🇪🇸 Español (Mina y GPS)</button>
+            <button type="button" class="chip-action" onclick="applyPreset('pt')">🇧🇷 Português (Polícia e banco)</button>
             <button type="button" class="chip-action" onclick="applyPreset('stuck')">🛑 Застрял в текстурах</button>
           </div>
         </div>
@@ -1042,8 +1133,18 @@
 
   <!-- Client-side Logic -->
   <script>
-    let currentKind = 'report';
     let selectedLang = 'ru';
+
+    function selectChannel(kind) {
+      document.getElementById('selected-kind').value = kind;
+      ['report', 'complaint', 'question'].forEach(k => {
+        const btn = document.getElementById('channel-btn-' + k);
+        if (btn) {
+          if (k === kind) btn.classList.add('active');
+          else btn.classList.remove('active');
+        }
+      });
+    }
 
     function selectLang(code) {
       selectedLang = code;
@@ -1059,9 +1160,9 @@
           ru: 'Подскажите, как устроиться на работу на шахту и где она находится?',
           kk: 'Сәлеметсіз бе! Мен ойында қалай көлік сатып ала аламын және автосалон қайда орналасқан?',
           uz: 'Assalomu alaykum! Shaxtada qanday ishlash mumkin va u qayerda joylashgan?',
-          en: 'Hello, how can I get a job at the mine and where is it located on the map?',
+          en: 'Hello, how can I find the nearest police department or hospital using GPS?',
           es: 'Hola, ¿cómo puedo conseguir trabajo en la mina y dónde se encuentra?',
-          pt: 'Olá, como posso conseguir um emprego na mina e onde ela fica no mapa?'
+          pt: 'Olá, como posso encontrar a delegacia de polícia e o hospital pelo GPS?'
         };
         txt.value = langPrompts[code] || '';
       }
@@ -1073,41 +1174,57 @@
         kind: 'report',
         text: 'Подскажите пожалуйста, как мне устроиться на работу на шахту и где она находится на карте?'
       },
+      police: {
+        kind: 'question',
+        text: 'Здравствуйте! Подскажите, как найти ближайший отдел полиции МВД и где оплатить штрафы?'
+      },
+      hospital: {
+        kind: 'report',
+        text: 'Где находится центральная городская больница и как оформить медицинскую карту?'
+      },
       insult: {
         kind: 'complaint',
-        text: 'Игрок Vasya_Killer жестко материт меня и оскорбляет мою мать в вип чате, разберитесь!'
+        text: 'Игрок Vasya_Killer жестко материт меня и оскорбляет мою мать в вип чате, разберитесь! 2.1 ОП'
       },
       cheat: {
         kind: 'complaint',
-        text: 'Игрок Kolya_Pro летает над автобазаром на читах и всех раскидывает! Срочно бан ему!'
+        text: 'Игрок Kolya_Pro летает над автобазаром на читах и всех раскидывает! Срочно бан ему, 5.2 ОП!'
       },
       dm: {
         kind: 'complaint',
-        text: 'Меня заДМили прямо у банка Арзамаса без причины! Убил игрок Bandit_777 из дигла!'
+        text: 'Меня заДМили прямо у банка без причины! Убил игрок Bandit_777 из дигла, 5.4 ОП!'
       },
       mismatch: {
         kind: 'complaint', // Mismatch query: gameplay question sent to complaint channel
-        text: 'Здравствуйте! Подскажите, со скольки лет в игре можно открыть вклад в банке и какая там ставка в день?'
+        text: 'Здравствуйте! Подскажите, со скольки лет в игре можно открыть вклад в банке и где найти мэрию?'
+      },
+      abuse: {
+        kind: 'report', // Direct toxicity/abuse in ticket
+        text: 'ты даун и админы ваши лохи конченые идите нахуй'
+      },
+      offtop: {
+        kind: 'report', // Offtop/begging
+        text: 'дай денег пж на тачку или тп меня к казино'
       },
       kz: {
         kind: 'report',
         text: 'Сәлеметсіз бе! Мен ойында қалай көлік сатып ала аламын және автосалон қайда орналасқан?'
       },
       uz: {
-        kind: 'complaint',
-        text: 'Assalomu alaykum! Kecha mening akkauntim nohaq bloklandi, iltimos tekshirib bering, men qoidani buzmadim.'
+        kind: 'question',
+        text: 'Assalomu alaykum! Shaxtada qanday ishlash mumkin va u qayerda joylashgan?'
       },
       en: {
-        kind: 'complaint',
-        text: 'Player SpeedDemon is using speed hacks and teleporting cars on server #2. Please ban him asap!'
+        kind: 'question',
+        text: 'Hello! How can I find the nearest police department or hospital using in-game GPS?'
       },
       es: {
         kind: 'report',
         text: 'Hola, ¿dónde puedo encontrar el trabajo de minero y cómo cobro mi salario en el banco?'
       },
       pt: {
-        kind: 'complaint',
-        text: 'Fui banido injustamente por suposto uso de hack, mas nunca usei nada. Por favor me desbanem!'
+        kind: 'report',
+        text: 'Olá! Como faço para encontrar a delegacia de polícia e o hospital pelo GPS?'
       },
       stuck: {
         kind: 'report',
@@ -1118,7 +1235,7 @@
     function applyPreset(key) {
       const p = PRESETS[key];
       if (!p) return;
-      currentKind = p.kind;
+      selectChannel(p.kind || 'report');
       const txt = document.getElementById('ticket-text');
       txt.value = p.text;
       
@@ -1152,16 +1269,11 @@
 
       const startTime = performance.now();
 
-      // Auto-classify kind if user typed arbitrary text
-      const normLower = text.toLowerCase();
-      const complaintMarkers = ['дм', 'дб', 'dm', 'db', 'чит', 'софт', 'аим', 'рванка', 'вх', 'оск', 'матер', 'родн', 'мать', 'шлюх', 'бан', 'разбан', 'варн', 'развод', 'обман', 'scam', 'cheat', 'hack', 'banned'];
-      let finalKind = currentKind;
-      if (!finalKind) {
-        finalKind = complaintMarkers.some(m => normLower.includes(m)) ? 'complaint' : 'report';
-      }
+      // Read selected channel from UI
+      const selectedKind = document.getElementById('selected-kind').value || 'report';
 
       const payload = {
-        kind: finalKind,
+        kind: selectedKind,
         text: text,
         messages: [
           {
@@ -1193,8 +1305,6 @@
       } finally {
         submitBtn.disabled = false;
         submitLabel.textContent = 'НАЙТИ ОТВЕТ / ТРИАЖ (POST /triage)';
-        // Reset currentKind so subsequent manual inputs re-evaluate
-        currentKind = null;
       }
     }
 

@@ -51,7 +51,7 @@ class MessageItem(BaseModel):
 
 class TriageRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    kind: Optional[str] = Field(default=None, description="Тип обращения: 'complaint' или 'report'")
+    kind: Optional[str] = Field(default=None, description="Тип обращения: 'report', 'complaint' или 'question'")
     messages: Optional[List[MessageItem]] = Field(default=None, description="Сообщения в тикете")
     text: Optional[str] = Field(default=None, description="Одиночный текст тикета")
     ticket_id: Optional[str] = None
