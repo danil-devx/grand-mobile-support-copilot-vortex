@@ -123,7 +123,28 @@ def run_checks():
     assert r_mismatch_comp["needs_human"] is True, "Жалоба на нарушение в репорт должна передаваться человеку!"
     print(" -> [Routing 3/3] Жалоба в репорте: категория report.complaint, правило 5.4, слежка + перенаправление на форум OK")
 
-    print(" -> УСПЕХ: Все 3 сценария маршрутизации и кросс-канальных проверок отработали идеально!")
+    # 4.4 Жесткая проверка: Оффтоп / Флуд / Выпрашивание (п. 3.1)
+    r_offtop = triage_ticket({
+        "kind": "REPORT",
+        "text": "дай денег пж на тачку или тп меня к казино"
+    })
+    assert r_offtop["category"] == "report.offtopic", f"Ожидалась report.offtopic, получено {r_offtop['category']}"
+    assert any(rc["rule_id"] == "3.1" for rc in r_offtop["draft_reply"]["rules_cited"]), "ОШИБКА: Правило 3.1 не процитировано!"
+    assert "3.1" in r_offtop["draft_reply"]["text"], "Черновик не содержит предупреждения по п. 3.1!"
+    print(" -> [Routing 4/5] Оффтоп/выпрашивание в репорте: категория report.offtopic, правило 3.1, предупреждение MUTE REPORT OK")
+
+    # 4.5 Жесткая проверка: Прямой мат и оскорбление администрации (п. 2.1, 3.2)
+    r_abuse = triage_ticket({
+        "kind": "REPORT",
+        "text": "ты даун и админы ваши лохи конченые идите нахуй"
+    })
+    assert r_abuse["category"] == "report.offtopic", f"Ожидалась report.offtopic, получено {r_abuse['category']}"
+    assert any(rc["rule_id"] == "2.1" for rc in r_abuse["draft_reply"]["rules_cited"]), "ОШИБКА: Правило 2.1 не процитировано!"
+    assert any(rc["rule_id"] == "3.2" for rc in r_abuse["draft_reply"]["rules_cited"]), "ОШИБКА: Правило 3.2 не процитировано!"
+    assert r_abuse["needs_human"] is True, "Прямое оскорбление должно требовать обязательного вмешательства!"
+    print(" -> [Routing 5/5] Прямой мат/оскорбление: категория report.offtopic, правила 2.1 и 3.2, эскалация needs_human=True OK")
+
+    print(" -> УСПЕХ: Все 5 сценариев маршрутизации, оффтопа и мата отработали идеально!")
 
     # 5. API Contract & Exact Quotes Verification
     print("\n[5/7] Проверка структуры API контракта и точных цитат rules_cited...")

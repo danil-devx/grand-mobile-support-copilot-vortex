@@ -85,21 +85,28 @@ def _is_direct_abuse(norm: str, nickname: Optional[str] = None) -> bool:
 
 def _is_nonsense_or_offtop(norm: str) -> bool:
     """
-    Определяет бессмысленный оффтоп, флуд, клавиатурный спам или выпрашивание валюты/ТП (п. 3.1).
+    Определяет бессмысленный оффтоп, флуд, клавиатурный спам, выпрашивание валюты/ТП или простое общение (п. 3.1).
     """
     norm = norm.strip().lower()
     if len(norm) <= 4 and norm not in ["дм", "дб", "вх", "гпс", "gps", "help", "жб"]:
         return True
-    if re.search(r'(.)\1{4,}', norm):
+    if re.search(r'(.)\1{3,}', norm):
         return True
-    if any(km in norm for km in ["йцукен", "asdfg", "qwerty", "фывап", "zxcvb"]):
+    if any(km in norm for km in ["йцукен", "asdfg", "qwerty", "фывап", "zxcvb", "123456"]):
         return True
+    # Выпрашивание или требования телепорта (п. 3.1)
     begging_patterns = [
         r'\b(дай|дайте|выдай\w*|подкинь\w*|накинь\w*)\s+(\w+\s+)?(денег|вирт\w*|рубл\w*|тачк\w*|машин\w*|донат\w*|ранг\w*|лвл\w*|админк\w*|гк)\b',
         r'\b(тп|телепорт\w*)\s+(меня|к|на|в)\b',
-        r'^\s*(скучно|привет|ку|хай|куку|ау|пока|всем\s+ку|ало)\s*$'
     ]
     if any(re.search(pat, norm) for pat in begging_patterns):
+        return True
+    # Простое общение / флуд / разговор вместо вопроса (оффтоп в репорт)
+    chatting_patterns = [
+        r'\b(привет\s+как\s+дела|че\s+делаешь|как\s+сам|поболтаем|расскажи\s+анекдот|ты\s+бот|кто\s+ты|ты\s+кто|ты\s+тут|ало\s+ты\s+тут|админ\s+ты\s+тут|скучно|мне\s+скучно)\b',
+        r'^\s*(скучно|привет|ку|хай|куку|ау|пока|всем\s+ку|ало|алло|помогите|help)\s*$'
+    ]
+    if any(re.search(pat, norm) for pat in chatting_patterns):
         return True
     return False
 
@@ -207,12 +214,9 @@ def _build_facts_extracted(
     Формирует структурированный список ключевых фактов, извлеченных из сообщения игрока.
     """
     items = []
-    kind_labels = {
-        "complaint": "Жалоба на игрока / форум (complaint)",
-        "report": "Внутриигровой репорт (report)",
-        "question": "Вопрос / Помощь (question)"
-    }
-    items.append(f"Канал обращения: {kind_labels.get(kind, kind)}")
+    is_complaint = "comp" in str(kind).lower()
+    kind_label = "Жалоба на игрока (COMPLAINT)" if is_complaint else "Репорт / Помощь (REPORT)"
+    items.append(f"Канал обращения: {kind_label}")
 
     if intent_type == "gameplay":
         items.append("Суть обращения: Вопрос по навигации / игровому процессу / механике")
@@ -223,8 +227,9 @@ def _build_facts_extracted(
         items.append("Нарушение: Пункты 2.1 (оскорбления), 3.2 (хамство/неуважение к администрации)")
         items.append("Требуемое действие: Выдача MUTE от 15 до 60 минут или блокировка персонажа")
     elif intent_type == "offtop_spam":
-        items.append("Суть обращения: Оффтоп / флуд / нецелевое использование канала обращений")
-        items.append("Требуемое действие: Предупреждение или блокировка репорта (MUTE REPORT до 30 мин, п. 3.1)")
+        items.append("Суть обращения: Оффтоп / флуд / общение не по назначению репорта")
+        items.append("Нарушение: Пункт 3.1 правил (использование репорта не по назначению)")
+        items.append("Предупреждение: Наказание MUTE REPORT до 30 минут или предупреждение (варн)")
     else:
         items.append("Суть обращения: Заявление о нарушении правил игры другим игроком")
 
@@ -283,34 +288,40 @@ def _rule_based_triage(
 
         draft_templates = {
             "ru": (
-                "Здравствуйте! Использование ненормативной лексики, оскорбления и хамство в обращениях "
-                "строго запрещены правилами сервера (пункты 2.1, 3.2 правил). За данное нарушение предусмотрена блокировка чата "
-                "(MUTE от 15 до 60 минут) или блокировка персонажа. Обращение передано администрации для выдачи соответствующего наказания. "
+                "Внимание: Вы нарушаете правила проекта! В репорте и любых чатах строго запрещены ненормативная лексика, "
+                "прямые и завуалированные оскорбления, а также хамство в адрес администрации (пункты 2.1 и 3.2 правил). "
+                "За данное нарушение предусмотрена блокировка чата (MUTE от 15 до 60 минут) или блокировка персонажа. "
+                "Обращение передано администрации для выдачи соответствующего наказания. "
                 "Пожалуйста, соблюдайте субординацию и правила проекта."
             ),
             "kk": (
-                "Сәлеметсіз бе! Өтініштерде былапыт сөздер, қорлау және әкімшілікке құрметсіздік танытуға сервер ережелерімен "
-                "қатаң тыйым салынады (2.1, 3.2 тармақтары). Бұл бұзушылық үшін чатты бұғаттау (15-тен 60 минутқа дейін MUTE) "
-                "немесе кейіпкерді бұғаттау қарастырылған. Өтініш жаза қолдану үшін әкімшілікке берілді."
+                "Назар аударыңыз: Сіз жоба ережелерін бұзып тұрсыз! Репортта және барлық чаттарда былапыт сөздер, "
+                "қорлау және әкімшілікке құрметсіздік танытуға қатаң тыйым салынады (2.1 және 3.2 тармақтары). "
+                "Бұл бұзушылық үшін чатты бұғаттау (15-тен 60 минутқа дейін MUTE) немесе кейіпкерді бұғаттау қарастырылған. "
+                "Өтініш жаза қолдану үшін әкімшілікке берілді."
             ),
             "uz": (
-                "Salom! Murojaatlarda haqoratli so'zlar, behayo so'kinish va ma'muriyatga hurmatsizlik qilish "
-                "server qoidalariga ko'ra qat'iyan man etiladi (2.1, 3.2-bandlar). Ushbu qoidabuzarlik uchun chat bloklanishi "
-                "(15 dan 60 daqiqagacha MUTE) ko'zda tutilgan. Murojaat jazo qo'llash uchun ma'muriyatga topshirildi."
+                "Diqqat: Siz loyiha qoidalarini buzyapsiz! Report va barcha chatlarda behayo so'kinish, "
+                "haqorat va ma'muriyatga hurmatsizlik qilish qat'iyan man etiladi (2.1 va 3.2-bandlar). "
+                "Ushbu qoidabuzarlik uchun chat bloklanishi (15 dan 60 daqiqagacha MUTE) ko'zda tutilgan. "
+                "Murojaat jazo qo'llash uchun ma'muriyatga topshirildi."
             ),
             "en": (
-                "Hello! Using profanity, insults, or disrespectful language in support tickets is strictly prohibited "
-                "by server rules (rules 2.1, 3.2). This violation results in a chat mute (MUTE from 15 to 60 minutes) "
-                "or account suspension. Your ticket has been forwarded to administrators for appropriate sanctions."
+                "Warning: You are violating server rules! Profanity, direct or implied insults, "
+                "and disrespect towards administration are strictly prohibited (rules 2.1 and 3.2). "
+                "This violation results in a chat mute (MUTE from 15 to 60 minutes) or account suspension. "
+                "Your ticket has been forwarded to administrators for appropriate sanctions."
             ),
             "es": (
-                "¡Hola! El uso de lenguaje obsceno e insultos en los reportes está estrictamente prohibido por las reglas del servidor "
-                "(reglas 2.1, 3.2). Esta infracción conlleva el bloqueo del chat (MUTE de 15 a 60 minutos) o suspensión del personaje. "
+                "¡Atención: Está infringiendo las reglas del servidor! El uso de lenguaje obsceno, "
+                "insultos y falta de respeto a la administración están estrictamente prohibidos (reglas 2.1 y 3.2). "
+                "Esta infracción conlleva el bloqueo del chat (MUTE de 15 a 60 minutos) o suspensión del personaje. "
                 "El caso ha sido transferido a la administración para la sanción correspondiente."
             ),
             "pt": (
-                "Olá! O uso de linguagem ofensiva e desrespeito nos tíquetes é estritamente proibido pelas regras do servidor "
-                "(regras 2.1, 3.2). Esta infração acarreta o bloqueio do chat (MUTE de 15 a 60 minutos) ou suspensão do personagem. "
+                "Atenção: Você está violando as regras do servidor! Palavrões, "
+                "ofensas e desrespeito à administração são estritamente proibidos (regras 2.1 e 3.2). "
+                "Esta infração acarreta o bloqueio do chat (MUTE de 15 a 60 minutos) ou suspensão do personagem. "
                 "O tíquete foi transferido para a administração para sanção cabível."
             )
         }
@@ -342,30 +353,41 @@ def _rule_based_triage(
 
         draft_templates = {
             "ru": (
-                "Здравствуйте! Канал обращений предназначен исключительно для конструктивных игровых вопросов и жалоб. "
-                "Оффтоп, флуд, бессмысленные сообщения и просьбы о выдаче валюты/телепорта запрещены правилами сервера (пункт 3.1) "
-                "и влекут за собой блокировку репорта (MUTE REPORT до 30 минут). Пожалуйста, соблюдайте правила проекта."
+                "Внимание: Репорт используется не по назначению! Отправка оффтопа, бессмысленных сообщений, "
+                "флуда, ведение простого общения вместо вопроса, а также просьбы о выдаче валюты или телепорте "
+                "строго запрещены правилами сервера (пункт 3.1 правил). Подобные действия наказываются блокировкой репорта "
+                "(MUTE REPORT до 30 минут) или предупреждением (варн). Пожалуйста, используйте репорт исключительно "
+                "для конкретных игровых вопросов и навигации."
             ),
             "kk": (
-                "Сәлеметсіз бе! Репорт тек ойын бойынша сұрақтар мен шағымдарға арналған. Оффтоп, флуд және ақша немесе телепорт "
-                "сұрауға ереже бойынша тыйым салынады (3.1 тармақ, MUTE REPORT 30 минутқа дейін). Ережені сақтауыңызды сұраймыз."
+                "Назар аударыңыз: Репорт өз мақсатында қолданылмай жатыр! Оффтоп, флуд, сұрақтың орнына жай сөйлесу "
+                "және ақша немесе телепорт сұрауға ереже бойынша қатаң тыйым салынады (3.1 тармағы). "
+                "Мұндай әрекеттер репортты бұғаттауға (MUTE REPORT 30 минутқа дейін) немесе варнға әкеледі. "
+                "Өтінеміз, репортты тек ойын бойынша сұрақтар мен көмек үшін пайдаланыңыз."
             ),
             "uz": (
-                "Salom! Report faqat o'yin savollari va shikoyatlar uchun mo'ljallangan. Offtop, behuda xabarlar hamda pul yoki teleport "
-                "so'rash server qoidalariga zid (3.1-band, MUTE REPORT 30 daqiqagacha). Iltimos, server qoidalariga rioya qiling."
+                "Diqqat: Report maqsadsiz ishlatilmoqda! Offtop, behuda xabarlar, savol o'rniga gaplashish "
+                "hamda pul yoki teleport so'rash qat'iyan man etiladi (3.1-band). "
+                "Bunday qoidabuzarlik report bloklanishiga (30 daqiqagacha MUTE REPORT) yoki ogohlantirishga (warn) sabab bo'ladi. "
+                "Iltimos, reportdan faqat aniq o'yin savollari bo'yicha foydalaning."
             ),
             "en": (
-                "Hello! The support channel is intended solely for constructive game inquiries and reports. "
-                "Offtop, spam, meaningless text, and begging for money or teleportation are prohibited (rule 3.1) "
-                "and subject to a report mute (MUTE REPORT up to 30 min). Please follow the server rules."
+                "Warning: The report system is being used improperly! Offtop, spam, casual chatting instead of asking questions, "
+                "and begging for money or teleportation are strictly prohibited (rule 3.1). "
+                "These actions will result in a report mute (MUTE REPORT up to 30 minutes) or a warning. "
+                "Please use the report system solely for specific gameplay questions and navigation assistance."
             ),
             "es": (
-                "¡Hola! El canal de soporte está destinado exclusivamente a consultas y quejas constructivas. "
-                "El offtop, spam y pedir dinero o teletransporte están prohibidos (regla 3.1) y conllevan bloqueo de reportes (MUTE REPORT hasta 30 min)."
+                "¡Atención: El reporte se está usando de forma indebida! El offtop, spam, charlar en lugar de hacer una pregunta "
+                "y pedir dinero o teletransporte están estrictamente prohibidos (regla 3.1). "
+                "Estas acciones conllevan el bloqueo de reportes (MUTE REPORT hasta 30 minutos) o una advertencia. "
+                "Utilice el reporte únicamente para dudas específicas sobre el juego."
             ),
             "pt": (
-                "Olá! O canal de suporte destina-se apenas a dúvidas e denúncias construtivas sobre o jogo. "
-                "Offtop, spam e pedir dinheiro ou teletransporte são proibidos (regla 3.1) e sujeitos a bloqueio de reporte (MUTE REPORT até 30 min)."
+                "Atenção: O reporte está sendo usado de forma inadequada! Offtop, spam, conversas em vez de dúvidas "
+                "e pedidos de dinheiro ou teletransporte são estritamente proibidos (regla 3.1). "
+                "Essas ações acarretam o bloqueo de reportes (MUTE REPORT até 30 minutos) ou advertência (warn). "
+                "Utilice o reporte apenas para dúvidas pontuais sobre o jogo."
             )
         }
         draft_text = draft_templates.get(reply_lang, draft_templates["ru"])
@@ -1148,8 +1170,11 @@ def triage_ticket(payload: Dict[str, Any]) -> Dict[str, Any]:
     Принимает payload формата POST /triage:
     { "kind": "complaint"|"report"|"question", "messages": [ ... ] }
     """
-    orig_kind = payload.get("kind") or "report"
+    orig_kind_raw = payload.get("kind") or "REPORT"
+    orig_kind = "complaint" if "comp" in str(orig_kind_raw).lower() else "report"
     messages = payload.get("messages", [])
+    if not messages and payload.get("text"):
+        messages = [{"role": "player", "text": str(payload["text"]), "attachments": 0}]
 
     # 1. Извлечение фактов и RAG
     facts = extract_ticket_facts(messages, kind=orig_kind)

@@ -334,8 +334,8 @@
 
     .channel-pills-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
     }
 
     @media (max-width: 640px) {
@@ -347,16 +347,16 @@
     .channel-pill-btn {
       background: rgba(255, 255, 255, 0.04);
       border: 1px solid rgba(255, 35, 75, 0.22);
-      border-radius: 10px;
-      padding: 10px 12px;
+      border-radius: 12px;
+      padding: 12px 16px;
       color: #cbd5e1;
       font-family: inherit;
-      font-size: 12.5px;
+      font-size: 13px;
       cursor: pointer;
       display: flex;
       flex-direction: column;
       align-items: flex-start;
-      gap: 3px;
+      gap: 4px;
       transition: all 0.2s ease;
       user-select: none;
       text-align: left;
@@ -953,27 +953,23 @@
           <span style="font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace;">INPUT WORKBENCH</span>
         </div>
 
-        <!-- Channel Selector (Kind): report / complaint / question -->
+        <!-- Channel Selector (Strictly 2 channels): REPORT / COMPLAINT -->
         <div class="channel-box">
           <div class="chips-label">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            <span>Канал обращения (Kind):</span>
+            <span>Канал обращения (Channel Kind):</span>
           </div>
           <div class="channel-pills-grid">
-            <button type="button" class="channel-pill-btn active" id="channel-btn-report" onclick="selectChannel('report')">
-              <span class="channel-pill-title">🎮 Репорт</span>
-              <span class="channel-pill-code">kind: "report"</span>
+            <button type="button" class="channel-pill-btn active" id="channel-btn-report" onclick="selectChannel('REPORT')">
+              <span class="channel-pill-title">🎮 Репорт / Помощь</span>
+              <span class="channel-pill-code">kind: "REPORT" (Геймплей, /gps, помощь)</span>
             </button>
-            <button type="button" class="channel-pill-btn" id="channel-btn-complaint" onclick="selectChannel('complaint')">
+            <button type="button" class="channel-pill-btn" id="channel-btn-complaint" onclick="selectChannel('COMPLAINT')">
               <span class="channel-pill-title">📋 Жалоба на игрока</span>
-              <span class="channel-pill-code">kind: "complaint"</span>
-            </button>
-            <button type="button" class="channel-pill-btn" id="channel-btn-question" onclick="selectChannel('question')">
-              <span class="channel-pill-title">❓ Вопрос / Помощь</span>
-              <span class="channel-pill-code">kind: "question"</span>
+              <span class="channel-pill-code">kind: "COMPLAINT" (Нарушения правил)</span>
             </button>
           </div>
-          <input type="hidden" id="selected-kind" value="report">
+          <input type="hidden" id="selected-kind" value="REPORT">
         </div>
 
         <!-- Quick Test Scenario Presets -->
@@ -992,6 +988,7 @@
             <button type="button" class="chip-action chip-warn" onclick="applyPreset('mismatch')">⚠️ Мисматч: Вопрос в Жалобы</button>
             <button type="button" class="chip-action" style="border-color: rgba(239, 68, 68, 0.6); color: #fca5a5;" onclick="applyPreset('abuse')">🚨 Мат / Оскорбление в тикет (п. 2.1, 3.2)</button>
             <button type="button" class="chip-action" style="border-color: rgba(245, 158, 11, 0.5); color: #fde68a;" onclick="applyPreset('offtop')">🛑 Оффтоп / Выпрашивание (п. 3.1)</button>
+            <button type="button" class="chip-action" style="border-color: rgba(245, 158, 11, 0.5); color: #fde68a;" onclick="applyPreset('chatting')">💬 Общение вместо вопроса (п. 3.1)</button>
             <button type="button" class="chip-action" onclick="applyPreset('kz')">🇰🇿 Қазақ тілі (Жұмыс табу)</button>
             <button type="button" class="chip-action" onclick="applyPreset('uz')">🇺🇿 O'zbek tili (Shaxta va bank)</button>
             <button type="button" class="chip-action" onclick="applyPreset('en')">🇬🇧 English (Police & GPS)</button>
@@ -1136,14 +1133,20 @@
     let selectedLang = 'ru';
 
     function selectChannel(kind) {
-      document.getElementById('selected-kind').value = kind;
-      ['report', 'complaint', 'question'].forEach(k => {
-        const btn = document.getElementById('channel-btn-' + k);
-        if (btn) {
-          if (k === kind) btn.classList.add('active');
-          else btn.classList.remove('active');
+      const norm = (kind || 'REPORT').toUpperCase();
+      document.getElementById('selected-kind').value = norm;
+      const isReport = norm === 'REPORT';
+      const reportBtn = document.getElementById('channel-btn-report');
+      const compBtn = document.getElementById('channel-btn-complaint');
+      if (reportBtn && compBtn) {
+        if (isReport) {
+          reportBtn.classList.add('active');
+          compBtn.classList.remove('active');
+        } else {
+          compBtn.classList.add('active');
+          reportBtn.classList.remove('active');
         }
-      });
+      }
     }
 
     function selectLang(code) {
@@ -1168,66 +1171,70 @@
       }
     }
 
-    // Authentic Grand Mobile Scenarios
+    // Authentic Grand Mobile Scenarios (Strictly 2 channels: REPORT and COMPLAINT)
     const PRESETS = {
       mine: {
-        kind: 'report',
+        kind: 'REPORT',
         text: 'Подскажите пожалуйста, как мне устроиться на работу на шахту и где она находится на карте?'
       },
       police: {
-        kind: 'question',
+        kind: 'REPORT',
         text: 'Здравствуйте! Подскажите, как найти ближайший отдел полиции МВД и где оплатить штрафы?'
       },
       hospital: {
-        kind: 'report',
+        kind: 'REPORT',
         text: 'Где находится центральная городская больница и как оформить медицинскую карту?'
       },
       insult: {
-        kind: 'complaint',
+        kind: 'COMPLAINT',
         text: 'Игрок Vasya_Killer жестко материт меня и оскорбляет мою мать в вип чате, разберитесь! 2.1 ОП'
       },
       cheat: {
-        kind: 'complaint',
+        kind: 'COMPLAINT',
         text: 'Игрок Kolya_Pro летает над автобазаром на читах и всех раскидывает! Срочно бан ему, 5.2 ОП!'
       },
       dm: {
-        kind: 'complaint',
+        kind: 'COMPLAINT',
         text: 'Меня заДМили прямо у банка без причины! Убил игрок Bandit_777 из дигла, 5.4 ОП!'
       },
       mismatch: {
-        kind: 'complaint', // Mismatch query: gameplay question sent to complaint channel
+        kind: 'COMPLAINT', // Mismatch query: gameplay question sent to complaint channel
         text: 'Здравствуйте! Подскажите, со скольки лет в игре можно открыть вклад в банке и где найти мэрию?'
       },
       abuse: {
-        kind: 'report', // Direct toxicity/abuse in ticket
+        kind: 'REPORT', // Direct toxicity/abuse in ticket
         text: 'ты даун и админы ваши лохи конченые идите нахуй'
       },
       offtop: {
-        kind: 'report', // Offtop/begging
+        kind: 'REPORT', // Offtop/begging
         text: 'дай денег пж на тачку или тп меня к казино'
       },
+      chatting: {
+        kind: 'REPORT', // Offtop casual chatting
+        text: 'Привет как дела, че делаешь? Мне скучно'
+      },
       kz: {
-        kind: 'report',
+        kind: 'REPORT',
         text: 'Сәлеметсіз бе! Мен ойында қалай көлік сатып ала аламын және автосалон қайда орналасқан?'
       },
       uz: {
-        kind: 'question',
+        kind: 'REPORT',
         text: 'Assalomu alaykum! Shaxtada qanday ishlash mumkin va u qayerda joylashgan?'
       },
       en: {
-        kind: 'question',
+        kind: 'REPORT',
         text: 'Hello! How can I find the nearest police department or hospital using in-game GPS?'
       },
       es: {
-        kind: 'report',
+        kind: 'REPORT',
         text: 'Hola, ¿dónde puedo encontrar el trabajo de minero y cómo cobro mi salario en el banco?'
       },
       pt: {
-        kind: 'report',
+        kind: 'REPORT',
         text: 'Olá! Como faço para encontrar a delegacia de polícia e o hospital pelo GPS?'
       },
       stuck: {
-        kind: 'report',
+        kind: 'REPORT',
         text: 'Помогите, я застрял в текстурах забора около казино, не могу пошевелиться!'
       }
     };
