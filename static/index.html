@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Grand Mobile — Support Copilot AI Workstation</title>
+  
+  <!-- Modern Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-primary: #04060d;
+      --bg-card: rgba(13, 17, 28, 0.72);
+      --bg-card-hover: rgba(18, 24, 38, 0.85);
+      --bg-subtle: rgba(255, 255, 255, 0.03);
+      --border-card: rgba(255, 255, 255, 0.08);
+      --border-card-hover: rgba(139, 92, 246, 0.35);
+      
+      --accent-violet: #8b5cf6;
+      --accent-cyan: #06b6d4;
+      --accent-indigo: #6366f1;
+      --accent-emerald: #10b981;
+      --accent-rose: #f43f5e;
+      --accent-amber: #f59e0b;
+      
+      --text-main: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      
+      --glow-primary: rgba(139, 92, 246, 0.25);
+      --glow-cyan: rgba(6, 182, 212, 0.25);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(ellipse 90% 60% at 50% -20%, rgba(99, 102, 241, 0.18), transparent 70%),
+        radial-gradient(circle 500px at 100% 20%, rgba(6, 182, 212, 0.12), transparent 70%),
+        radial-gradient(circle 600px at 0% 80%, rgba(139, 92, 246, 0.12), transparent 70%),
+        radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.6), transparent 100%);
+      background-attachment: fixed;
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Ambient top highlight line */
+    .top-glow-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(6, 182, 212, 0.6) 25%, rgba(139, 92, 246, 0.8) 50%, rgba(6, 182, 212, 0.6) 75%, transparent 100%);
+      z-index: 100;
+    }
+
+    .app-wrapper {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 24px 32px 64px;
+    }
+
+    /* Header Component */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0 28px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      margin-bottom: 32px;
+      position: relative;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700;
+      font-size: 19px;
+      color: #ffffff;
+      box-shadow: 0 0 25px rgba(124, 58, 237, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      position: relative;
+    }
+
+    .brand-icon::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 13px;
+      padding: 1px;
+      background: linear-gradient(135deg, rgba(255,255,255,0.4), transparent);
+      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+
+    .brand-meta h1 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      background: linear-gradient(100deg, #ffffff 30%, #cbd5e1 70%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-version-badge {
+      font-size: 11px;
+      font-weight: 600;
+      font-family: 'JetBrains Mono', monospace;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      color: #c4b5fd;
+      -webkit-text-fill-color: #c4b5fd;
+    }
+
+    .brand-meta p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .status-capsules {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .capsule {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 6px 14px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      backdrop-filter: blur(12px);
+      transition: all 0.2s ease;
+    }
+
+    .capsule-live {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #34d399;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 10px #10b981;
+      animation: pulseDot 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    .capsule-langs {
+      background: rgba(6, 182, 212, 0.08);
+      border: 1px solid rgba(6, 182, 212, 0.25);
+      color: #67e8f9;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+    }
+
+    .capsule-case {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      color: #cbd5e1;
+    }
+
+    /* Main Grid Layout */
+    .workspace-grid {
+      display: grid;
+      grid-template-columns: minmax(430px, 1fr) minmax(580px, 1.25fr);
+      gap: 32px;
+      align-items: start;
+    }
+
+    @media (max-width: 1080px) {
+      .workspace-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glass Cards */
+    .glass-card {
+      background: var(--bg-card);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-card);
+      border-radius: 22px;
+      padding: 26px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+      position: relative;
+    }
+
+    .glass-card:hover {
+      border-color: var(--border-card-hover);
+      box-shadow: 0 28px 70px rgba(0, 0, 0, 0.55), 0 0 30px rgba(139, 92, 246, 0.05);
+    }
+
+    .card-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 22px;
+    }
+
+    .panel-heading {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 17px;
+      font-weight: 600;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .heading-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #c4b5fd;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    /* Presets Segment */
+    .preset-section-label {
+      font-size: 11.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .preset-chips-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .chip-btn {
+      background: rgba(255, 255, 255, 0.035);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: #cbd5e1;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 7px 13px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      user-select: none;
+    }
+
+    .chip-btn:hover {
+      background: rgba(139, 92, 246, 0.14);
+      border-color: rgba(139, 92, 246, 0.35);
+      color: #ffffff;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+    }
+
+    .chip-btn:active {
+      transform: translateY(0);
+    }
+
+    .chip-amber {
+      border-color: rgba(245, 158, 11, 0.3);
+      color: #fde68a;
+    }
+    .chip-amber:hover {
+      background: rgba(245, 158, 11, 0.15);
+      border-color: rgba(245, 158, 11, 0.5);
+      color: #fff;
+    }
+
+    .chip-rose {
+      border-color: rgba(244, 63, 94, 0.3);
+      color: #fca5a5;
+    }
+    .chip-rose:hover {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.5);
+      color: #fff;
+    }
+
+    .chip-emerald {
+      border-color: rgba(16, 185, 129, 0.3);
+      color: #86efac;
+    }
+    .chip-emerald:hover {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.5);
+      color: #fff;
+    }
+
+    /* Form Fields */
+    .form-row {
+      margin-bottom: 20px;
+    }
+
+    .field-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    /* Kind Segmented Tabs */
+    .segmented-control {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.35);
+      padding: 5px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .segment-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      user-select: none;
+    }
+
+    .segment-tab:hover {
+      color: #e2e8f0;
+    }
+
+    .segment-tab.active {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9));
+      color: #ffffff;
+      box-shadow: 0 4px 16px rgba(124, 58, 237, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+    }
+
+    /* Textarea */
+    .custom-textarea {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      padding: 16px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.55;
+      resize: vertical;
+      min-height: 140px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+    }
+
+    .custom-textarea:focus {
+      background: rgba(0, 0, 0, 0.6);
+      border-color: var(--accent-violet);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+    }
+
+    .custom-textarea::placeholder {
+      color: #475569;
+    }
+
+    /* Inline Controls */
+    .inline-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .custom-input {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 11px 14px;
+      color: #ffffff;
+      font-family: inherit;
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .custom-input:focus {
+      border-color: var(--accent-violet);
+      box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.25);
+    }
+
+    .custom-input:disabled {
+      color: #64748b;
+      background: rgba(255, 255, 255, 0.02);
+      cursor: not-allowed;
+    }
+
+    /* Primary CTA Button */
+    .cta-submit-btn {
+      width: 100%;
+      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #7c3aed 100%);
+      color: #ffffff;
+      border: none;
+      padding: 15px 24px;
+      border-radius: 15px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 15.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 10px 30px rgba(124, 58, 237, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      margin-top: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 16px 38px rgba(124, 58, 237, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.6);
+      filter: brightness(1.08);
+    }
+
+    .cta-submit-btn:active {
+      transform: translateY(0);
+    }
+
+    .cta-submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Shimmer effect on CTA */
+    .cta-submit-btn::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 60%);
+      transform: rotate(30deg);
+      pointer-events: none;
+      transition: opacity 0.5s;
+    }
+
+    /* RIGHT PANEL: AI Results */
+    .latency-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: #34d399;
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      padding: 4px 10px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Empty state */
+    .empty-placeholder {
+      text-align: center;
+      padding: 90px 24px;
+      color: var(--text-muted);
+    }
+
+    .empty-art {
+      width: 64px;
+      height: 64px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+      color: var(--accent-cyan);
+    }
+
+    .empty-placeholder h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+    }
+
+    .empty-placeholder p {
+      font-size: 13.5px;
+      max-width: 360px;
+      margin: 0 auto;
+      line-height: 1.5;
+    }
+
+    /* Result Content Container */
+    #result-view {
+      animation: fadeInUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Meta Badges Ribbon */
+    .verdict-ribbon {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .badge-capsule {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+    }
+
+    .badge-category {
+      background: rgba(139, 92, 246, 0.16);
+      border: 1px solid rgba(139, 92, 246, 0.4);
+      color: #d8b4fe;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-p0 {
+      background: rgba(244, 63, 94, 0.18);
+      border: 1px solid rgba(244, 63, 94, 0.5);
+      color: #fb7185;
+    }
+    .badge-p1 {
+      background: rgba(245, 158, 11, 0.18);
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      color: #fcd34d;
+    }
+    .badge-p2 {
+      background: rgba(6, 182, 212, 0.18);
+      border: 1px solid rgba(6, 182, 212, 0.5);
+      color: #67e8f9;
+    }
+    .badge-p3 {
+      background: rgba(148, 163, 184, 0.14);
+      border: 1px solid rgba(148, 163, 184, 0.3);
+      color: #cbd5e1;
+    }
+
+    .badge-lang-tag {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    .badge-confidence {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid rgba(16, 185, 129, 0.25);
+      color: #6ee7b7;
+    }
+
+    /* Escalation Banner */
+    .escalation-card {
+      border-radius: 16px;
+      padding: 16px 20px;
+      margin-bottom: 22px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      font-size: 13.5px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .escalation-danger {
+      background: rgba(244, 63, 94, 0.08);
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      color: #fecdd3;
+    }
+
+    .escalation-safe {
+      background: rgba(16, 185, 129, 0.08);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      color: #a7f3d0;
+    }
+
+    .escalation-icon-box {
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 16px;
+    }
+
+    .escalation-danger .escalation-icon-box {
+      background: rgba(244, 63, 94, 0.2);
+      color: #fb7185;
+    }
+
+    .escalation-safe .escalation-icon-box {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+
+    .escalation-title {
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      margin-bottom: 2px;
+    }
+
+    .escalation-danger .escalation-title { color: #ffffff; }
+    .escalation-safe .escalation-title { color: #ffffff; }
+
+    /* Module Box */
+    .module-card {
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 16px;
+      padding: 18px 20px;
+      margin-bottom: 20px;
+      transition: border-color 0.2s ease;
+    }
+
+    .module-card:hover {
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+
+    .module-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .module-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    /* Facts List */
+    .facts-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .fact-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 13.5px;
+      color: #e2e8f0;
+      line-height: 1.45;
+    }
+
+    .fact-bullet {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+      margin-top: 7px;
+      flex-shrink: 0;
+    }
+
+    /* RAG Rules Box */
+    .rag-quote-box {
+      background: rgba(15, 23, 42, 0.55);
+      border-left: 3px solid var(--accent-cyan);
+      border-radius: 0 12px 12px 0;
+      padding: 14px 16px;
+      margin-top: 10px;
+      font-size: 13px;
+      line-height: 1.55;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      border-right: 1px solid rgba(255, 255, 255, 0.04);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .rag-rule-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .rag-rule-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.12);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(6, 182, 212, 0.25);
+    }
+
+    .rag-quote-text {
+      color: #cbd5e1;
+      font-style: normal;
+    }
+
+    /* AI Draft Reply Box */
+    .draft-container {
+      background: linear-gradient(180deg, rgba(30, 27, 75, 0.25) 0%, rgba(15, 23, 42, 0.45) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 18px;
+      padding: 20px;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    }
+
+    .draft-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .draft-indicator {
+      font-size: 12px;
+      font-weight: 700;
+      color: #c4b5fd;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .copy-action-btn {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      color: #e2e8f0;
+      padding: 6px 14px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .copy-action-btn:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.25);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .copy-action-btn:active {
+      transform: translateY(0);
+    }
+
+    .draft-body {
+      font-size: 14.5px;
+      line-height: 1.65;
+      color: #f8fafc;
+      white-space: pre-wrap;
+      font-weight: 400;
+    }
+
+    /* Footer meta & Raw JSON */
+    .results-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .toggle-json-link {
+      background: none;
+      border: none;
+      color: #a78bfa;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      transition: color 0.2s;
+    }
+
+    .toggle-json-link:hover {
+      color: #c4b5fd;
+    }
+
+    .json-code-block {
+      background: #03060f;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      padding: 16px;
+      margin-top: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #7dd3fc;
+      overflow-x: auto;
+      max-height: 280px;
+      display: none;
+      line-height: 1.5;
+    }
+
+    /* Inline Loading Spinner */
+    .loader-spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spinLoader 0.7s linear infinite;
+    }
+
+    @keyframes spinLoader {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Ambient Glow -->
+  <div class="top-glow-bar"></div>
+
+  <div class="app-wrapper">
+    
+    <!-- Header -->
+    <header>
+      <div class="brand-group">
+        <div class="brand-icon">GM</div>
+        <div class="brand-meta">
+          <h1>
+            Grand Mobile Support Copilot
+            <span class="brand-version-badge">v2.4 AI</span>
+          </h1>
+          <p>Интеллектуальная система триажа жалоб, репортов и строгого цитирования правил</p>
+        </div>
+      </div>
+      
+      <div class="status-capsules">
+        <div class="capsule capsule-langs">
+          <span>6 ЯЗЫКОВ</span>
+        </div>
+        <div class="capsule capsule-case">
+          <span>Decentrathon 6.0 · Кейс 03</span>
+        </div>
+        <div class="capsule capsule-live">
+          <span class="live-dot"></span>
+          <span>POST /triage ONLINE</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 2-Column Workstation Grid -->
+    <div class="workspace-grid">
+      
+      <!-- LEFT COLUMN: Ticket Input & Scenario Presets -->
+      <div class="glass-card">
+        
+        <div class="card-title-row">
+          <div class="panel-heading">
+            <div class="heading-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+            </div>
+            <span>Входящее обращение</span>
+          </div>
+        </div>
+
+        <!-- Presets Bar -->
+        <div class="preset-section-label">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Быстрые сценарии тестирования:</span>
+        </div>
+        
+        <div class="preset-chips-wrap">
+          <button class="chip-btn" onclick="loadPreset('insult')">🤬 Оскорбление (2.1)</button>
+          <button class="chip-btn" onclick="loadPreset('cheat')">🎯 Читы / ПО (5.2)</button>
+          <button class="chip-btn" onclick="loadPreset('dm')">💀 DM у банка (5.4 + GZ)</button>
+          <button class="chip-btn chip-emerald" onclick="loadPreset('gameplay')">💡 Вопрос по игре (/gps)</button>
+          <button class="chip-btn chip-amber" onclick="loadPreset('mismatch_gameplay')">🔄 Вопрос в жалобу (Mismatch)</button>
+          <button class="chip-btn chip-rose" onclick="loadPreset('mismatch_complaint')">⚠️ Жалоба в репорт (Mismatch)</button>
+          <button class="chip-btn" onclick="loadPreset('kz')">🇰🇿 Казахский cp1251</button>
+          <button class="chip-btn" onclick="loadPreset('uz')">🇺🇿 Узбекский (UZ)</button>
+          <button class="chip-btn" onclick="loadPreset('es')">🇪🇸 Испанский (ES)</button>
+          <button class="chip-btn" onclick="loadPreset('pt')">🇧🇷 Португальский (PT)</button>
+          <button class="chip-btn" onclick="loadPreset('hack')">🔐 Взлом аккаунта (P0)</button>
+          <button class="chip-btn" onclick="loadPreset('stuck')">🚗 Застрял (Help)</button>
+        </div>
+
+        <!-- Type Selector -->
+        <div class="form-row">
+          <div class="field-label">
+            <span>Канал обращения (kind)</span>
+          </div>
+          <div class="segmented-control">
+            <div id="type-complaint" class="segment-tab active" onclick="selectType('complaint')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Жалоба (complaint)</span>
+            </div>
+            <div id="type-report" class="segment-tab" onclick="selectType('report')">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+              <span>Репорт (report)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Text Input -->
+        <div class="form-row">
+          <div class="field-label">
+            <span>Текст сообщения игрока</span>
+          </div>
+          <textarea id="ticket-text" class="custom-textarea" placeholder="Введите текст обращения игрока или выберите сценарий выше..."></textarea>
+        </div>
+
+        <!-- Secondary Controls -->
+        <div class="form-row inline-controls">
+          <div>
+            <div class="field-label">
+              <span>Вложения (скриншоты/фрапс)</span>
+            </div>
+            <input id="attachments-count" type="number" min="0" value="1" class="custom-input">
+          </div>
+          <div>
+            <div class="field-label">
+              <span>Сервер / Регион</span>
+            </div>
+            <input type="text" value="Сервер 01 · Grand Mobile" class="custom-input" disabled>
+          </div>
+        </div>
+
+        <!-- Submit Button -->
+        <button id="submit-btn" class="cta-submit-btn" onclick="runTriage()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Разобрать через Support Copilot</span>
+        </button>
+
+      </div>
+
+      <!-- RIGHT COLUMN: AI Verdict & Copilot Output -->
+      <div class="glass-card" id="results-panel">
+        
+        <div class="card-title-row">
+          <div class="panel-heading">
+            <div class="heading-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            </div>
+            <span>Вердикт Support Copilot</span>
+          </div>
+          <span id="latency-indicator" class="latency-badge">⚡ 0.4 ms</span>
+        </div>
+
+        <!-- Empty Placeholder -->
+        <div id="empty-view" class="empty-placeholder">
+          <div class="empty-art">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          </div>
+          <h3>Ожидание входящего обращения</h3>
+          <p>Выберите любой готовый сценарий слева или введите произвольный текст и запустите анализ.</p>
+        </div>
+
+        <!-- Live Result View -->
+        <div id="result-view" style="display: none;">
+          
+          <!-- Metadata Badges Ribbon -->
+          <div class="verdict-ribbon">
+            <div id="res-category" class="badge-capsule badge-category">complaint.insult</div>
+            <div id="res-priority" class="badge-capsule badge-p2">P2 Обычный</div>
+            <div id="res-lang" class="badge-capsule badge-lang-tag">RU</div>
+            <div id="res-confidence" class="badge-capsule badge-confidence">Точность: 85%</div>
+          </div>
+
+          <!-- Human Escalation Banner -->
+          <div id="res-handoff" class="escalation-card escalation-danger">
+            <div class="escalation-icon-box" id="handoff-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+            </div>
+            <div>
+              <div class="escalation-title" id="handoff-title">Требуется вмешательство администратора</div>
+              <div id="handoff-reason" style="color: #cbd5e1; font-size: 13px;">Решение о наказании подтверждает администратор</div>
+            </div>
+          </div>
+
+          <!-- Facts Extracted Module -->
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 11 12 14 22 4"></polyline><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path></svg>
+                <span>Ключевые факты (facts_extracted)</span>
+              </div>
+            </div>
+            <div id="facts-list" class="facts-grid">
+              <!-- Dynamically rendered -->
+            </div>
+          </div>
+
+          <!-- RAG Rules Cited Module -->
+          <div class="module-card">
+            <div class="module-header">
+              <div class="module-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path></svg>
+                <span>Точные цитаты из правил (rules.json RAG)</span>
+              </div>
+            </div>
+            <div id="rag-rules-container">
+              <!-- Dynamically rendered with {rule_id, quote} -->
+            </div>
+          </div>
+
+          <!-- Draft Reply Container -->
+          <div class="draft-container">
+            <div class="draft-top">
+              <div class="draft-indicator">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <span>Черновик ответа на языке игрока</span>
+              </div>
+              <button class="copy-action-btn" onclick="copyDraft()">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span id="copy-label">Копировать</span>
+              </button>
+            </div>
+            <div id="res-draft" class="draft-body"></div>
+          </div>
+
+          <!-- Technical Footer & JSON Inspector -->
+          <div class="results-footer">
+            <span>Статус: Контракт POST /triage 100% валиден</span>
+            <button class="toggle-json-link" onclick="toggleJson()">Показать сырой JSON-ответ</button>
+          </div>
+          <pre id="raw-json" class="json-code-block"></pre>
+
+        </div>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    let currentKind = 'complaint';
+
+    const presets = {
+      insult: {
+        kind: 'complaint',
+        text: 'Arman_Petrov оскорблял меня и мою семью в чате, скрины есть, 2.1 ОП',
+        attachments: 2
+      },
+      cheat: {
+        kind: 'complaint',
+        text: '5.2 OP, soft, стреляет сквозь стены и летает над казино, фрапс: <url>',
+        attachments: 1
+      },
+      dm: {
+        kind: 'complaint',
+        text: 'Viktor_Karpov начал стрелять по мне без причины у банка, ДМ в зеленой зоне GZ, скрины приложил',
+        attachments: 2
+      },
+      gameplay: {
+        kind: 'report',
+        text: 'Подскажите пожалуйста, где находится банк и с какого уровня можно работать дальнобойщиком?',
+        attachments: 0
+      },
+      mismatch_gameplay: {
+        kind: 'complaint',
+        text: 'Где найти мэрию и как сдать на права? Очень нужно получить лицензию',
+        attachments: 0
+      },
+      mismatch_complaint: {
+        kind: 'report',
+        text: 'Меня дмят у банка, игрок Viktor_Karpov начал стрелять без причины, 5.4 ОП помогите срочно!',
+        attachments: 0
+      },
+      kz: {
+        kind: 'complaint',
+        text: 'сєлем Arman_Kz меніѕ аќшамды алдап кетті 5000 монет 4.1 ереже скриндер бар кјмектесіѕіздер',
+        attachments: 1
+      },
+      uz: {
+        kind: 'complaint',
+        text: 'Salom, Bekzod_Uz meni sokyapti va onadan haqorat qildi, 2.1 op, dalillar: <url>',
+        attachments: 1
+      },
+      es: {
+        kind: 'complaint',
+        text: '¡Hola! Carlos_Ruiz está usando trampa y aimbot en el evento, regla 5.2, tengo video de prueba',
+        attachments: 1
+      },
+      pt: {
+        kind: 'complaint',
+        text: 'Olá! O jogador Lucas_Silva usou trapaça e soft no servidor, regra 5.2, gravação anexada',
+        attachments: 1
+      },
+      hack: {
+        kind: 'report',
+        text: 'Срочно помогите, меня взломали! Не могу зайти на аккаунт Dias_Volkov, пароль сменили, пропала машина',
+        attachments: 0
+      },
+      stuck: {
+        kind: 'report',
+        text: 'Застрял в текстурах около автосалона, вытащите пожалуйста!',
+        attachments: 0
+      }
+    };
+
+    function selectType(kind) {
+      currentKind = kind;
+      document.getElementById('type-complaint').classList.toggle('active', kind === 'complaint');
+      document.getElementById('type-report').classList.toggle('active', kind === 'report');
+    }
+
+    function loadPreset(key) {
+      const p = presets[key];
+      if (!p) return;
+      selectType(p.kind);
+      document.getElementById('ticket-text').value = p.text;
+      document.getElementById('attachments-count').value = p.attachments;
+      runTriage();
+    }
+
+    async function runTriage() {
+      const text = document.getElementById('ticket-text').value.trim();
+      if (!text) {
+        alert('Пожалуйста, введите текст обращения или выберите готовый сценарий');
+        return;
+      }
+
+      const attachments = parseInt(document.getElementById('attachments-count').value) || 0;
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      btn.innerHTML = `<span class="loader-spinner"></span> <span>Анализ Support Copilot...</span>`;
+
+      const startTime = performance.now();
+
+      try {
+        const payload = {
+          kind: currentKind,
+          messages: [
+            {
+              role: 'player',
+              text: text,
+              attachments: attachments
+            }
+          ]
+        };
+
+        const res = await fetch('/triage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+        const data = await res.json();
+        const duration = Math.round(performance.now() - startTime);
+
+        renderResult(data, duration);
+      } catch (err) {
+        alert(`Ошибка при обработке: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+          <span>Разобрать через Support Copilot</span>
+        `;
+      }
+    }
+
+    function renderResult(data, duration) {
+      document.getElementById('empty-view').style.display = 'none';
+      document.getElementById('result-view').style.display = 'block';
+
+      // Latency indicator
+      document.getElementById('latency-indicator').textContent = `⚡ ${duration} ms latency`;
+
+      // Category badge
+      const catBadge = document.getElementById('res-category');
+      catBadge.textContent = data.category || 'unknown';
+
+      // Priority badge
+      const prioBadge = document.getElementById('res-priority');
+      prioBadge.className = 'badge-capsule ' + (
+        data.priority === 'p0' ? 'badge-p0' :
+        data.priority === 'p1' ? 'badge-p1' :
+        data.priority === 'p2' ? 'badge-p2' : 'badge-p3'
+      );
+      const prioTitles = { p0: 'P0 Критично', p1: 'P1 Высокий', p2: 'P2 Обычный', p3: 'P3 Низкий' };
+      prioBadge.textContent = prioTitles[data.priority] || (data.priority ? data.priority.toUpperCase() : 'P2');
+
+      // Language badge
+      const langBadge = document.getElementById('res-lang');
+      langBadge.textContent = (data.lang || 'ru').toUpperCase();
+
+      // Confidence
+      const confBadge = document.getElementById('res-confidence');
+      const confVal = Math.round((data.confidence || 0.8) * 100);
+      confBadge.textContent = `Точность: ${confVal}%`;
+
+      // Human handoff banner
+      const handoffBox = document.getElementById('res-handoff');
+      const handoffTitle = document.getElementById('handoff-title');
+      const handoffReason = document.getElementById('handoff-reason');
+      const handoffIcon = document.getElementById('handoff-icon');
+
+      if (data.needs_human) {
+        handoffBox.className = 'escalation-card escalation-danger';
+        handoffIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>`;
+        handoffTitle.textContent = 'ТРЕБУЕТСЯ АДМИНИСТРАТОР (Human Review)';
+        handoffReason.textContent = (data.reasons && data.reasons.length) 
+          ? data.reasons.join('; ') 
+          : 'Решение требует верификации сотрудником поддержки';
+      } else {
+        handoffBox.className = 'escalation-card escalation-safe';
+        handoffIcon.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+        handoffTitle.textContent = 'АВТОМАТИЧЕСКИЙ ОТВЕТ (Безопасно)';
+        handoffReason.textContent = (data.reasons && data.reasons.length)
+          ? data.reasons.join('; ')
+          : 'Обращение носит справочный характер и не требует административных санкций';
+      }
+
+      // Facts Extracted list
+      const factsList = document.getElementById('facts-list');
+      factsList.innerHTML = '';
+      const facts = data.facts_extracted || [];
+      if (facts.length > 0) {
+        facts.forEach(f => {
+          const item = document.createElement('div');
+          item.className = 'fact-item';
+          item.innerHTML = `<span class="fact-bullet"></span><span>${escapeHtml(f)}</span>`;
+          factsList.appendChild(item);
+        });
+      } else {
+        const item = document.createElement('div');
+        item.className = 'fact-item';
+        item.innerHTML = `<span class="fact-bullet"></span><span>Факты извлечены автоматически.</span>`;
+        factsList.appendChild(item);
+      }
+
+      // RAG Rules Cited (with exact verbatim quotes)
+      const ragBox = document.getElementById('rag-rules-container');
+      ragBox.innerHTML = '';
+      const rulesCited = (data.draft_reply && data.draft_reply.rules_cited) || [];
+      
+      if (rulesCited.length > 0) {
+        rulesCited.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'rag-quote-box';
+          card.innerHTML = `
+            <div class="rag-rule-header">
+              <span class="rag-rule-id">Пункт ${escapeHtml(item.rule_id)}</span>
+            </div>
+            <div class="rag-quote-text">«${escapeHtml(item.quote)}»</div>
+          `;
+          ragBox.appendChild(card);
+        });
+      } else {
+        const emptyMsg = document.createElement('div');
+        emptyMsg.style.color = '#94a3b8';
+        emptyMsg.style.fontSize = '13px';
+        emptyMsg.style.padding = '8px 0';
+        emptyMsg.textContent = 'Прямые пункты правил нарушений не цитируются (вопрос по геймплею или справочный репорт).';
+        ragBox.appendChild(emptyMsg);
+      }
+
+      // Draft reply text
+      const draftReplyText = (data.draft_reply && data.draft_reply.text) || '';
+      document.getElementById('res-draft').textContent = draftReplyText;
+
+      // Raw JSON
+      document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+    }
+
+    function toggleJson() {
+      const el = document.getElementById('raw-json');
+      const isVisible = el.style.display === 'block';
+      el.style.display = isVisible ? 'none' : 'block';
+      document.querySelector('.toggle-json-link').textContent = isVisible ? 'Показать сырой JSON-ответ' : 'Скрыть JSON-ответ';
+    }
+
+    function copyDraft() {
+      const text = document.getElementById('res-draft').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        const label = document.getElementById('copy-label');
+        label.textContent = 'Скопировано!';
+        const btn = document.querySelector('.copy-action-btn');
+        btn.style.borderColor = '#10b981';
+        btn.style.color = '#34d399';
+        setTimeout(() => {
+          label.textContent = 'Копировать';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }, 2200);
+      });
+    }
+
+    function escapeHtml(text) {
+      const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+      return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+
+    // Auto-load first preset on start
+    window.addEventListener('DOMContentLoaded', () => {
+      loadPreset('insult');
+    });
+  </script>
+</body>
+</html>

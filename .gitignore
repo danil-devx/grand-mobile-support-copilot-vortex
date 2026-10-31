@@ -1,0 +1,39 @@
+# Virtual Environment & Python binaries
+python_env/
+git_env/
+venv/
+.venv/
+env/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Environment & Secrets
+.env
+.env.local
+*.env
+
+# Large datasets & predictions (CRITICAL: Do not upload player data to public repo per Decentrathon rules)
+*.jsonl
+*.jsonl.gz
+*.tgz
+*.tar.gz
+*.zip
+pred.jsonl
+test_pred_run.jsonl
+tickets_train.jsonl.gz
+tickets_valid.jsonl
+/handout/
+support_copilot/handout/tickets_train.jsonl.gz
+support_copilot/handout/tickets_valid.jsonl
+
+# Temporary and metadata files
+._*
+.DS_Store
+Thumbs.db
+*.docx
+docx_content.txt
+extract_docx.py
